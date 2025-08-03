@@ -279,7 +279,7 @@ private struct VercelClaudeRequest: Codable {
     let moduleProgress: ModuleProgress?
 }
 
-private struct ModuleProgress: Codable {
+struct ModuleProgress: Codable {
     let currentModule: String
     let nodesCompleted: Int
     let totalNodes: Int

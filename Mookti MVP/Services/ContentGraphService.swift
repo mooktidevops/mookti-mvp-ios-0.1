@@ -8,7 +8,7 @@
 import Foundation
 import Combine
 
-/// Parses `workplace_success_lp_intro_module.csv` into an in‑memory graph the app can traverse.
+/// Parses all learning path CSV modules into an in‑memory graph the app can traverse.
 ///
 /// The service is `ObservableObject` so you can @Environment it if needed, but
 /// most callers will read the `nodes` dictionary synchronously after init.
@@ -19,6 +19,9 @@ final class ContentGraphService: ObservableObject {
 
     /// All nodes keyed by `sequence_id`.
     @Published private(set) var nodes: [String: LearningNode] = [:]
+    
+    /// Track which modules are loaded
+    @Published private(set) var loadedModules: [String] = []
 
     /// Convenience accessor for a node by ID.
     func node(for id: String) -> LearningNode? { nodes[id] }
@@ -29,31 +32,57 @@ final class ContentGraphService: ObservableObject {
 
     init(bundle: Bundle = .main) {
         Task { 
-            await loadCSV(from: bundle)
+            await loadAllModules(from: bundle)
             isLoaded = true
         }
     }
 
     // MARK: - Private CSV logic
+    
+    /// Load all learning path modules
+    private func loadAllModules(from bundle: Bundle) async {
+        // Define all modules to load in order
+        let modules = [
+            "workplace_success_lp_intro_module",
+            "cq_intro_module",
+            "cq_power_hierarchy_relationships",
+            "cq_dealing_with_unknowns",
+            "cq_consensus_building",
+            "cq_being_in_sync"
+        ]
+        
+        var allNodes: [String: LearningNode] = [:]
+        
+        for moduleName in modules {
+            print("📚 Loading module: \(moduleName)")
+            let moduleNodes = await loadCSV(named: moduleName, from: bundle)
+            
+            // Merge nodes, checking for ID conflicts
+            for (id, node) in moduleNodes {
+                if allNodes[id] != nil {
+                    print("⚠️ Warning: Duplicate node ID \(id) found in \(moduleName)")
+                }
+                allNodes[id] = node
+            }
+            
+            if !moduleNodes.isEmpty {
+                loadedModules.append(moduleName)
+                print("✅ Loaded \(moduleNodes.count) nodes from \(moduleName)")
+            }
+        }
+        
+        nodes = allNodes
+        print("📊 Total nodes loaded: \(allNodes.count) from \(loadedModules.count) modules")
+    }
 
-    /// Asynchronously reads & parses the file.
-    private func loadCSV(from bundle: Bundle) async {
+    /// Asynchronously reads & parses a single CSV file.
+    private func loadCSV(named resourceName: String, from bundle: Bundle) async -> [String: LearningNode] {
         guard
-            let url = bundle.url(forResource: "workplace_success_lp_intro_module", withExtension: "csv"),
+            let url = bundle.url(forResource: resourceName, withExtension: "csv"),
             let raw = try? String(contentsOf: url, encoding: .utf8)
         else {
-            print("🚨 CRITICAL: workplace_success_lp_intro_module.csv missing from bundle")
-            // Create minimal fallback content so app doesn't break
-            nodes = [
-                "1": LearningNode(
-                    id: "1", 
-                    type: .system, 
-                    content: "Content loading failed. Please contact support.", 
-                    nextAction: "getNextChunk", 
-                    nextChunkIDs: []
-                )
-            ]
-            return
+            print("⚠️ Module \(resourceName).csv not found in bundle")
+            return [:]
         }
 
         var result: [String: LearningNode] = [:]
@@ -88,7 +117,7 @@ final class ContentGraphService: ObservableObject {
             )
         }
 
-        nodes = result          // publish to observers
+        return result
     }
 
     /// Minimal, dependency‑free CSV parser for one line.

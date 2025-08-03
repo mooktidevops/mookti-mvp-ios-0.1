@@ -62,6 +62,11 @@ final class EllenViewModel: ObservableObject {
         // Wait for content to be loaded before accessing nodes
         if graph.isLoaded {
             print("📊 EllenViewModel: Content graph has \(graph.nodes.count) nodes")
+            print("📚 EllenViewModel: Loaded modules: \(graph.loadedModules.joined(separator: ", "))")
+            
+            // Update AI service with module information
+            aiService?.totalNodes = graph.nodes.count
+            aiService?.moduleTitle = "Cultural Intelligence Learning Path"
             
             // Load module title from chunk 0
             if let titleNode = graph.node(for: "0"), titleNode.type == .moduleTitle {
@@ -79,6 +84,11 @@ final class EllenViewModel: ObservableObject {
             Task {
                 for await _ in graph.$isLoaded.values where graph.isLoaded {
                     print("📊 EllenViewModel: Content graph loaded with \(graph.nodes.count) nodes")
+                    print("📚 EllenViewModel: Loaded modules: \(graph.loadedModules.joined(separator: ", "))")
+                    
+                    // Update AI service with module information
+                    aiService?.totalNodes = graph.nodes.count
+                    aiService?.moduleTitle = "Cultural Intelligence Learning Path"
                     
                     // Load module title from chunk 0
                     if let titleNode = graph.node(for: "0"), titleNode.type == .moduleTitle {
@@ -177,6 +187,10 @@ final class EllenViewModel: ObservableObject {
 
         print("📍 advance: Moving to node \(id), type=\(node.type)")
         currentNodeID = id
+        
+        // Update AI service with current position
+        aiService?.currentNodeId = id
+        aiService?.nodesCompleted += 1
         
         // Check if we should pause before delivering this message
         // For carousel and media types, use estimated heights
