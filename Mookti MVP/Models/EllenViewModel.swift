@@ -59,22 +59,41 @@ final class EllenViewModel: ObservableObject {
         let ai = EllenAIService()
         aiService = ai
         
-        print("📊 EllenViewModel: Content graph has \(graph.nodes.count) nodes")
-        
-        // Load module title from chunk 0
-        if let titleNode = graph.node(for: "0"), titleNode.type == .moduleTitle {
-            moduleTitle = titleNode.content
-            print("📝 EllenViewModel: Loaded module title: \(moduleTitle)")
+        // Wait for content to be loaded before accessing nodes
+        if graph.isLoaded {
+            print("📊 EllenViewModel: Content graph has \(graph.nodes.count) nodes")
+            
+            // Load module title from chunk 0
+            if let titleNode = graph.node(for: "0"), titleNode.type == .moduleTitle {
+                moduleTitle = titleNode.content
+                print("📝 EllenViewModel: Loaded module title: \(moduleTitle)")
+            }
+            
+            // Start lesson at sequence_id = "1" and deliver initial content
+            print("🎯 EllenViewModel: Loading initial content...")
+            loadInitialContent()
+            print("✅ EllenViewModel: Configuration complete")
+        } else {
+            print("⏳ EllenViewModel: Waiting for content graph to load...")
+            // Subscribe to isLoaded changes
+            Task {
+                for await _ in graph.$isLoaded.values where graph.isLoaded {
+                    print("📊 EllenViewModel: Content graph loaded with \(graph.nodes.count) nodes")
+                    
+                    // Load module title from chunk 0
+                    if let titleNode = graph.node(for: "0"), titleNode.type == .moduleTitle {
+                        moduleTitle = titleNode.content
+                        print("📝 EllenViewModel: Loaded module title: \(moduleTitle)")
+                    }
+                    
+                    // Start lesson at sequence_id = "1" and deliver initial content
+                    print("🎯 EllenViewModel: Loading initial content...")
+                    loadInitialContent()
+                    print("✅ EllenViewModel: Configuration complete")
+                    break
+                }
+            }
         }
-        
-        // Since EllenAIService is now @Observable, we need to manually sync state
-        // For now, we'll handle this through direct property access
-        // In a production app, you might want to use proper observation
-        
-        // Start lesson at sequence_id = "1" and deliver initial content
-        print("🎯 EllenViewModel: Loading initial content...")
-        loadInitialContent()
-        print("✅ EllenViewModel: Configuration complete")
     }
     
     /// Load initial content for new users
@@ -613,8 +632,11 @@ final class EllenViewModel: ObservableObject {
         
         let estimatedHeight = estimateMessageHeight(for: nextContent, nodeType: nodeType)
         
+        print("📏 shouldPauseForScroll: estimatedHeight=\(estimatedHeight), viewport=\(currentViewportHeight)")
+        
         // Increase threshold - if message is longer than 60% of viewport, deliver anyway
         if estimatedHeight > currentViewportHeight * 0.6 {
+            print("📏 shouldPauseForScroll: Message too long, delivering anyway")
             return false
         }
         
@@ -644,8 +666,12 @@ final class EllenViewModel: ObservableObject {
         // More generous threshold - only pause if really needed
         let totalHeightAfterNewContent = currentlyVisibleHeight + estimatedHeight
         
+        print("📏 shouldPauseForScroll: currentlyVisible=\(currentlyVisibleHeight), totalAfter=\(totalHeightAfterNewContent), available=\(availableViewportHeight)")
+        
         // Only pause if new content would significantly exceed viewport
-        return totalHeightAfterNewContent > availableViewportHeight * 1.2
+        let shouldPause = totalHeightAfterNewContent > availableViewportHeight * 1.2
+        print("📏 shouldPauseForScroll: returning \(shouldPause)")
+        return shouldPause
     }
     
     /// Find the parent node that leads to a given node ID

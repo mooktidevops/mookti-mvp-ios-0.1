@@ -128,6 +128,7 @@ struct EllenChatView: View {
                     scrollViewHeight = geometry.size.height
                     // Initially at bottom
                     isAtBottom = true
+                    print("📱 EllenChatView: Initial viewport height=\(geometry.size.height)")
                     vm.updateScrollPosition(isAtBottom: true, viewportHeight: geometry.size.height)
                 }
                 .onChange(of: vm.isTyping) { _, isTyping in

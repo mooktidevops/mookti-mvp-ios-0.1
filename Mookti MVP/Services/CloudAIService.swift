@@ -19,7 +19,9 @@ struct CloudAIService {
     /// - Parameters:
     ///   - prompt: The user prompt to send
     ///   - systemPrompt: Optional system prompt (Ellen's personality)
-    static func answer(for prompt: String, systemPrompt: String? = nil) async throws -> String {
+    ///   - currentNodeId: Current learning path node ID
+    ///   - moduleProgress: Progress information for the current module
+    static func answer(for prompt: String, systemPrompt: String? = nil, currentNodeId: String? = nil, moduleProgress: ModuleProgress? = nil) async throws -> String {
         let startTime = Date()
         let requestId = UUID().uuidString
         
@@ -42,6 +44,8 @@ struct CloudAIService {
         return try await callVercelEndpoint(
             prompt: prompt,
             systemPrompt: systemPrompt,
+            currentNodeId: currentNodeId,
+            moduleProgress: moduleProgress,
             requestId: requestId,
             startTime: startTime
         )
@@ -49,7 +53,7 @@ struct CloudAIService {
     
     /// Call Vercel Edge Function endpoint with RAG (Retrieval Augmented Generation)
     /// The endpoint searches Pinecone for relevant educational content before calling Claude
-    private static func callVercelEndpoint(prompt: String, systemPrompt: String?, requestId: String, startTime: Date) async throws -> String {
+    private static func callVercelEndpoint(prompt: String, systemPrompt: String?, currentNodeId: String?, moduleProgress: ModuleProgress?, requestId: String, startTime: Date) async throws -> String {
         logger.info("☁️ CloudAIService: Using Vercel endpoint with RAG for request [\(requestId)]")
         print("🔵 Vercel Endpoint Called:")
         print("🔵 URL: \(vercelEndpoint)")
@@ -99,7 +103,9 @@ struct CloudAIService {
             message: userMessage,
             chatHistory: chatHistory.isEmpty ? nil : chatHistory,
             useRAG: true,  // Always enable RAG for educational content
-            topK: 3        // Get top 3 relevant content pieces
+            topK: 3,       // Get top 3 relevant content pieces
+            currentNodeId: currentNodeId,
+            moduleProgress: moduleProgress
         )
         
         guard let url = URL(string: vercelEndpoint) else {
@@ -269,6 +275,14 @@ private struct VercelClaudeRequest: Codable {
     let chatHistory: [ChatHistoryItem]?
     let useRAG: Bool
     let topK: Int?
+    let currentNodeId: String?
+    let moduleProgress: ModuleProgress?
+}
+
+private struct ModuleProgress: Codable {
+    let currentModule: String
+    let nodesCompleted: Int
+    let totalNodes: Int
 }
 
 private struct VercelClaudeResponse: Codable {

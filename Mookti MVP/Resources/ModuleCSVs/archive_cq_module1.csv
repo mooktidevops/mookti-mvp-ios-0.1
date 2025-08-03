@@ -1,0 +1,11 @@
+sequence_id,display_type,content,nextAction,nextChunk
+0,title_sequence, "Cultural Intelligence: Making Sense of Your Context", getNextChunk, 1
+1, system, "In our last section, we mentioned how Cultural Intelligence developed as a data-driven solution to a problem in psychological research: Why do some people with high Emotional Intelligence fail to transition to working in new environments?", getNextChunk, 2
+2, system, "In plainer terms, why might a person who's great at reading the emotions of others and working with their own in the environment they're used to be less successful at the same kinds of things when moving to a new environment?", getNextChunk, 3
+3, system, "CQ researchers--and the data they've collected--suggest the answer to that question is Cultural Intelligence.", getNextChunk, 4
+4, system, "But what is culture and, to put things bluntly, how could someone be smart or dumb at it?", getNextChunk, 5
+5, system, "Let's start with the first part of that question: What is culture? We'll spend a few moments on this topic, then spend the next few models elaborating the second, intelligence-y part of the equation.", getNextChunk, 6
+6, aporia-system, "We'll begin with what you know already. What is culture?", getNextAporiaUser.Hybrid, 6.1 | 6.2 | 6.3
+6.1
+6.2
+6.3, 

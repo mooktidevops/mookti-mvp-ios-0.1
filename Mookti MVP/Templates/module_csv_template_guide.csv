@@ -1,0 +1,61 @@
+sequence_id,display_type,content,nextAction,nextChunk,learning_path,sequence,module,notes
+"[START]",module_title,"[Module Title Here]",getNextChunk,[NEXT_ID],"[Learning Path Name]","[Sequence Name]","[Module Name]","Module title appears at the beginning"
+"[START.1]",module_description,"[Detailed module description explaining what users will learn]",getNextChunk,[NEXT_ID],"[Learning Path Name]","[Sequence Name]","[Module Name]","Comprehensive overview of module content"
+"1",system,"[System message introducing the topic]",getNextChunk,2,"[Learning Path Name]","[Sequence Name]","[Module Name]","System messages are from the platform narrator"
+"2",system,"[Continue building context]",getNextChunk,3,"[Learning Path Name]","[Sequence Name]","[Module Name]","Build engagement and explain relevance"
+"3",aporia-system,"[Interactive question to engage the user]",getNextChunk,3.1|3.2|3.3,"[Learning Path Name]","[Sequence Name]","[Module Name]","Aporia-system poses questions; pipe-separate multiple choice IDs"
+"3.1",aporia-user,"[First response option]",getNextChunk,3.1.1,"[Learning Path Name]","[Sequence Name]","[Module Name]","User's potential response"
+"3.2",aporia-user,"[Second response option]",getNextChunk,3.2.1,"[Learning Path Name]","[Sequence Name]","[Module Name]","Alternative response"
+"3.3",aporia-user,"[Third response option]",getNextChunk,3.3.1,"[Learning Path Name]","[Sequence Name]","[Module Name]","Another alternative"
+"3.1.1",system,"[Response to first option]",getNextChunk,4,"[Learning Path Name]","[Sequence Name]","[Module Name]","Tailored response based on user choice"
+"3.2.1",system,"[Response to second option]",getNextChunk,4,"[Learning Path Name]","[Sequence Name]","[Module Name]","Different paths can converge"
+"3.3.1",system,"[Response to third option]",getNextChunk,3.3.2,"[Learning Path Name]","[Sequence Name]","[Module Name]","Or continue branching"
+"4",card-carousel,"{heading: '[Section Title]', cards: [{title: '[Card 1 Title]', content: '[Card 1 content with key concept]'}, {title: '[Card 2 Title]', content: '[Card 2 content]'}, {title: '[Card 3 Title]', content: '[Card 3 content]'}]}",getNextChunk,5,"[Learning Path Name]","[Sequence Name]","[Module Name]","JSON format for card carousel displays"
+"5",media,"[filename.pdf or image.png]",getNextChunk,6,"[Learning Path Name]","[Sequence Name]","[Module Name]","Reference to media files"
+"6",system,"[Concluding message]",getNextModule,,"[Learning Path Name]","[Sequence Name]","[Module Name]","getNextModule indicates end of current module"
+
+# CSV Template Guide for Expert Content Creation
+
+## Field Descriptions:
+- **sequence_id**: Unique identifier for each content node (use decimals for branching: 1, 1.1, 1.1.1)
+- **display_type**: Type of content display (see types below)
+- **content**: The actual text or JSON content to display
+- **nextAction**: Usually "getNextChunk" or "getNextModule" at the end
+- **nextChunk**: ID(s) of next node(s); use pipe (|) for multiple choices
+- **learning_path**: High-level path name (e.g., "Workplace Success", "Technical Skills")
+- **sequence**: Collection of related modules (e.g., "Introduction", "Advanced Concepts")
+- **module**: Specific module name within the sequence
+
+## Display Types:
+- **module_title**: Module's main title
+- **module_description**: Detailed description of module contents
+- **system**: Platform narrator messages (teaching content)
+- **aporia-system**: Interactive questions from the system
+- **aporia-user**: User response options
+- **card-carousel**: Multiple cards shown as carousel (JSON format)
+- **media**: Reference to PDF, image, or video files
+
+## Best Practices:
+1. Start sequence IDs with simple integers (1, 2, 3)
+2. Use decimals for branching paths (3.1, 3.2, 3.3)
+3. All branches should eventually converge or reach module end
+4. Keep content concise but informative
+5. Use em dashes (—) not double hyphens (--)
+6. Spell check all content before finalizing
+7. Interactive elements (aporia) increase engagement
+8. Card carousels work well for comparing concepts
+9. Include media files for visual learning
+
+## Branching Structure Example:
+- Linear: 1 → 2 → 3 → 4
+- Branching: 3 → 3.1|3.2|3.3 (user choice)
+- Convergence: 3.1.1 → 4, 3.2.1 → 4, 3.3.1 → 4
+
+## JSON Format for Card Carousels:
+{heading: 'Title Here', cards: [{title: 'Card Title', content: 'Card content text'}, ...]}
+
+## Notes:
+- Test all navigation paths before deployment
+- Ensure learning_path, sequence, and module are consistent throughout
+- Review for typos, grammar, and clarity
+- Consider cognitive load—break complex topics into smaller chunks

@@ -21,6 +21,12 @@ final class EllenAIService: ObservableObject {
     // MARK: - Private Properties
     private let settings: SettingsService
     
+    // Learning context tracking
+    var currentNodeId: String?
+    var moduleTitle: String = "Workplace Success Learning Path"
+    var nodesCompleted: Int = 0
+    var totalNodes: Int = 0
+    
     // MARK: - Ellen's Socratic System Prompt
     private let systemPrompt = """
     You are Ellen, a wise and friendly AI agent built to help college and post-graduate level learners understand complex topics in fresh ways. Your primary pedagogical method is elenchus, the Greek term for Socratic dialogue. 
@@ -123,11 +129,22 @@ final class EllenAIService: ObservableObject {
             
             // Library context (RAG) is now handled by Vercel Edge Function
             
-            // Call CloudAIService with full context
+            // Call CloudAIService with full context and learning progress
             // The useRAG parameter enables RAG context retrieval in Vercel
+            var moduleProgress: ModuleProgress? = nil
+            if totalNodes > 0 {
+                moduleProgress = ModuleProgress(
+                    currentModule: moduleTitle,
+                    nodesCompleted: nodesCompleted,
+                    totalNodes: totalNodes
+                )
+            }
+            
             let response = try await CloudAIService.answer(
                 for: fullPrompt,
-                systemPrompt: systemPrompt
+                systemPrompt: systemPrompt,
+                currentNodeId: currentNodeId,
+                moduleProgress: moduleProgress
             )
             
             let cloudDuration = Date().timeIntervalSince(cloudStartTime)

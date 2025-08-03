@@ -24,9 +24,14 @@ final class ContentGraphService: ObservableObject {
     func node(for id: String) -> LearningNode? { nodes[id] }
 
     // MARK: - Life‑cycle
+    
+    @Published private(set) var isLoaded = false
 
     init(bundle: Bundle = .main) {
-        Task { await loadCSV(from: bundle) }
+        Task { 
+            await loadCSV(from: bundle)
+            isLoaded = true
+        }
     }
 
     // MARK: - Private CSV logic
