@@ -638,8 +638,10 @@ final class EllenViewModel: ObservableObject {
     
     /// Called when user scrolls down - used to trigger content delivery
     func userScrolledDown() {
+        print("📜 userScrolledDown called - isPaused: \(isPaused), pendingNodeID: \(pendingNodeID ?? "nil")")
         // If we have paused content and user is scrolling down, resume delivery
         if isPaused, let pendingID = pendingNodeID {
+            print("✅ Resuming content delivery for node \(pendingID)")
             resumePendingContent(pendingID)
         }
     }
@@ -652,12 +654,14 @@ final class EllenViewModel: ObservableObject {
     }
     
     private func resumePendingContent(_ pendingID: String) {
+        print("📤 resumePendingContent called for node \(pendingID)")
         isPaused = false
         hasMoreContent = false
         pendingNodeID = nil
         
         // Check if we need to show branch options
         if let node = graph?.node(for: pendingID) {
+            print("📤 Resuming node \(pendingID) of type \(node.type)")
             switch node.type {
             case .aporiaSystem:
                 // Filter out already chosen options
@@ -684,6 +688,7 @@ final class EllenViewModel: ObservableObject {
                     branchOptions = [node]
                 }
             default:
+                print("📤 Calling advance for pending node \(pendingID)")
                 advance(to: pendingID)
             }
         }

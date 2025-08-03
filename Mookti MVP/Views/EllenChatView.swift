@@ -114,6 +114,7 @@ struct EllenChatView: View {
                     // Detect scroll direction and notify view model
                     if oldOffset != 0 && value < oldOffset {
                         // User scrolled down (offset becomes more negative)
+                        print("🔽 Scroll detected: oldOffset=\(oldOffset), newOffset=\(value)")
                         vm.userScrolledDown()
                     }
                 }
