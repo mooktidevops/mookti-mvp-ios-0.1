@@ -126,16 +126,14 @@ final class ContentGraphService: ObservableObject {
             let moduleNodes = await loadCSV(named: moduleInfo.name, from: bundle)
             
             // Process nodes with proper prefixing
-            for (originalId, var node) in moduleNodes {
+            for (originalId, node) in moduleNodes {
                 // For intro module, keep original IDs; for others, add prefix
                 let prefixedId = (moduleInfo.prefix == "intro") ? originalId : "\(moduleInfo.prefix)_\(originalId)"
                 
-                // Update the node's ID
-                node.id = prefixedId
-                
                 // Update nextChunkIDs to use prefixed versions
+                let updatedNextChunkIDs: [String]
                 if moduleInfo.prefix != "intro" && !node.nextChunkIDs.isEmpty {
-                    node.nextChunkIDs = node.nextChunkIDs.map { nextId in
+                    updatedNextChunkIDs = node.nextChunkIDs.map { nextId in
                         // Don't prefix if it's already prefixed
                         if nextId.contains("_") {
                             return nextId
@@ -143,9 +141,20 @@ final class ContentGraphService: ObservableObject {
                             return "\(moduleInfo.prefix)_\(nextId)"
                         }
                     }
+                } else {
+                    updatedNextChunkIDs = node.nextChunkIDs
                 }
                 
-                allNodes[prefixedId] = node
+                // Create a new node with updated ID and nextChunkIDs
+                let updatedNode = LearningNode(
+                    id: prefixedId,
+                    type: node.type,
+                    content: node.content,
+                    nextAction: node.nextAction,
+                    nextChunkIDs: updatedNextChunkIDs
+                )
+                
+                allNodes[prefixedId] = updatedNode
             }
             
             // Create transition node at the end of each module (except last)
@@ -156,11 +165,17 @@ final class ContentGraphService: ObservableObject {
                 let actualEndId = (moduleInfo.prefix == "intro") ? endNodeId : "\(moduleInfo.prefix)_\(endNodeId.split(separator: "_").last ?? Substring(endNodeId))"
                 
                 // Update the end node to point to transition
-                if var endNode = allNodes[actualEndId] {
+                if let endNode = allNodes[actualEndId] {
                     let transitionId = "\(moduleInfo.prefix)_transition"
-                    endNode.nextChunkIDs = [transitionId]
-                    endNode.nextAction = "getNextChunk"
-                    allNodes[actualEndId] = endNode
+                    // Create updated end node pointing to transition
+                    let updatedEndNode = LearningNode(
+                        id: endNode.id,
+                        type: endNode.type,
+                        content: endNode.content,
+                        nextAction: "getNextChunk",
+                        nextChunkIDs: [transitionId]
+                    )
+                    allNodes[actualEndId] = updatedEndNode
                     
                     // Create transition node
                     let nextModuleInfo = moduleConfigs.first { $0.prefix == nextModule }
