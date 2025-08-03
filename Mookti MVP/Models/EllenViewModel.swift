@@ -79,6 +79,10 @@ final class EllenViewModel: ObservableObject {
     
     /// Load initial content for new users
     private func loadInitialContent() {
+        // Set initial scroll state
+        isUserAtBottom = true
+        currentViewportHeight = 600 // Default estimate until actual value comes from view
+        print("🚀 EllenViewModel: Starting content delivery from node 1")
         advance(to: "1")
     }
 
@@ -584,10 +588,16 @@ final class EllenViewModel: ObservableObject {
     /// Check if delivering next message would require scrolling
     private func shouldPauseForScroll(nextContent: String, nodeType: LearningNode.DisplayType? = nil) -> Bool {
         // Don't pause if viewport height not yet known
-        guard currentViewportHeight > 0 else { return false }
+        guard currentViewportHeight > 0 else { 
+            print("📏 shouldPauseForScroll: Viewport not ready (height: \(currentViewportHeight))")
+            return false 
+        }
         
         // Always check current scroll position first
-        guard isUserAtBottom else { return false }
+        guard isUserAtBottom else { 
+            print("📏 shouldPauseForScroll: User not at bottom")
+            return false 
+        }
         
         let estimatedHeight = estimateMessageHeight(for: nextContent, nodeType: nodeType)
         
