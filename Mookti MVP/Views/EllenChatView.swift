@@ -89,6 +89,13 @@ struct EllenChatView: View {
                             TypingIndicatorBubble()
                                 .id("typing-indicator")
                         }
+                        
+                        // Add extra space when paused to enable scrolling
+                        if vm.hasMoreContent {
+                            Color.clear
+                                .frame(height: 200)
+                                .id("scroll-spacer")
+                        }
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
@@ -149,21 +156,20 @@ struct EllenChatView: View {
             }
             
             // More content indicator when paused
-            if vm.hasMoreContent && !isAtBottom {
-                HStack {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(.accentColor)
-                    Text("Scroll down for more")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
+            if vm.hasMoreContent {
+                Button(action: {
+                    // Directly trigger continuation
+                    vm.userScrolledDown()
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 20))
+                        Text("Continue")
+                            .font(.footnote)
+                    }
+                    .foregroundColor(.accentColor)
                 }
                 .padding(.vertical, 8)
-                .onTapGesture {
-                    withAnimation {
-                        scrollProxy?.scrollTo(vm.messages.last?.id, anchor: .bottom)
-                    }
-                }
             }
 
             // Divider moved here
