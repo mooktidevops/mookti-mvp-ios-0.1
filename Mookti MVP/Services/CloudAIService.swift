@@ -197,6 +197,48 @@ struct CloudAIService {
             FirebaseLogger.shared.addMetric(to: performanceTrace, name: "output_tokens", value: Int64(vercelResponse.usage.outputTokens))
             performanceTrace?.stop()
             
+            // Handle tool calls if present
+            if let toolCalls = vercelResponse.toolCalls, !toolCalls.isEmpty {
+                logger.info("🔧 CloudAIService: Processing \(toolCalls.count) tool calls")
+                
+                // Process tool calls and append instructions to response
+                var responseWithTools = vercelResponse.content
+                
+                for toolCall in toolCalls {
+                    switch toolCall.tool {
+                    case "return_to_path":
+                        if let transitionMsg = toolCall.input.transitionMessage {
+                            // Append transition message to guide back to path
+                            responseWithTools += "\n\n\(transitionMsg)"
+                            
+                            // Log the transition type for client handling
+                            logger.info("🔄 Return to path: \(toolCall.input.transitionType ?? "unknown")")
+                        }
+                        
+                    case "suggest_comprehension_check":
+                        if let preface = toolCall.input.preface,
+                           let question = toolCall.input.question {
+                            responseWithTools += "\n\n\(preface)\n\n\(question)"
+                        }
+                        
+                    case "explain_differently":
+                        if let explanation = toolCall.input.explanation {
+                            responseWithTools += "\n\n\(explanation)"
+                        }
+                        
+                    case "search_deeper":
+                        // This would trigger additional search - log for now
+                        logger.info("🔍 Additional search requested: \(toolCall.input.query ?? "")")
+                        
+                    default:
+                        logger.warning("⚠️ Unknown tool called: \(toolCall.tool)")
+                    }
+                }
+                
+                logger.info("✅ CloudAIService: Successfully returned response with tools, length: \(responseWithTools.count), duration: \(String(format: "%.3f", duration))s")
+                return responseWithTools
+            }
+            
             logger.info("✅ CloudAIService: Successfully returned Vercel response, length: \(vercelResponse.content.count), duration: \(String(format: "%.3f", duration))s")
             return vercelResponse.content
             
@@ -234,6 +276,50 @@ private struct VercelClaudeResponse: Codable {
     let model: String
     let usage: VercelUsage
     let ragUsed: Bool?
+    let toolCalls: [ToolCall]?
+}
+
+private struct ToolCall: Codable {
+    let id: String
+    let tool: String
+    let input: ToolInput
+}
+
+private struct ToolInput: Codable {
+    // Return to path fields
+    let transitionType: String?
+    let transitionMessage: String?
+    let conceptualBridge: String?
+    
+    // Search fields
+    let query: String?
+    let searchScope: String?
+    let reason: String?
+    
+    // Comprehension check fields (user-requested only)
+    let concept: String?
+    let checkType: String?
+    let question: String?
+    let preface: String?
+    
+    // Alternative explanation fields
+    let approach: String?
+    let explanation: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case transitionType = "transition_type"
+        case transitionMessage = "transition_message"
+        case conceptualBridge = "conceptual_bridge"
+        case query
+        case searchScope = "search_scope"
+        case reason
+        case concept
+        case checkType = "check_type"
+        case question
+        case preface
+        case approach
+        case explanation
+    }
 }
 
 private struct VercelUsage: Codable {

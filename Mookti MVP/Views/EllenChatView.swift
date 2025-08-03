@@ -107,8 +107,15 @@ struct EllenChatView: View {
                     updateScrollState()
                 }
                 .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                    let oldOffset = scrollOffset
                     scrollOffset = value
                     updateScrollState()
+                    
+                    // Detect scroll direction and notify view model
+                    if oldOffset != 0 && value < oldOffset {
+                        // User scrolled down (offset becomes more negative)
+                        vm.userScrolledDown()
+                    }
                 }
                 .background(
                     GeometryReader { geo in
@@ -253,6 +260,14 @@ struct EllenChatView: View {
     }
     
     private func updateScrollState() {
+        // Guard against invalid values that could cause NaN
+        guard scrollViewHeight > 0 && contentHeight > 0 else {
+            // Default state when dimensions aren't ready
+            isAtBottom = true
+            isAtTop = true
+            return
+        }
+        
         // Calculate if we're at the bottom (with small tolerance)
         let tolerance: CGFloat = 20
         

@@ -454,46 +454,76 @@ final class EllenViewModel: ObservableObject {
     
     // MARK: - Scroll Management
     func updateScrollPosition(isAtBottom: Bool, viewportHeight: CGFloat) {
+        let wasAtBottom = isUserAtBottom
         isUserAtBottom = isAtBottom
         currentViewportHeight = viewportHeight
         isAtBottomRequired = false
         
-        // If user scrolled to bottom and we have pending content, resume
-        if isAtBottom && isPaused, let pendingID = pendingNodeID {
-            isPaused = false
-            hasMoreContent = false
-            pendingNodeID = nil
-            
-            // Check if we need to show branch options
-            if let node = graph?.node(for: pendingID) {
-                switch node.type {
-                case .aporiaSystem:
-                    // Filter out already chosen options
-                    let allOptions = node.nextChunkIDs.compactMap { graph?.node(for: $0) }
-                    let chosenIds = chosenBranches[pendingID] ?? Set<String>()
-                    let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
-                    
-                    if availableOptions.isEmpty && !allOptions.isEmpty {
-                        // All options explored, advance
-                        handleAllOptionsExplored(at: pendingID, with: allOptions)
-                    } else {
-                        branchOptions = availableOptions
-                    }
-                case .aporiaUser:
-                    // Check if this was already chosen
-                    if let parentId = findParentNode(for: pendingID) {
-                        let chosenIds = chosenBranches[parentId] ?? Set<String>()
-                        if !chosenIds.contains(pendingID) {
-                            branchOptions = [node]
-                        } else {
-                            advance(to: node.nextChunkIDs.first)
-                        }
-                    } else {
-                        branchOptions = [node]
-                    }
-                default:
-                    advance(to: pendingID)
+        // Resume if user has scrolled down (not necessarily to bottom) and we have pending content
+        // This prevents indefinite pause - any downward scroll triggers continuation
+        if !wasAtBottom && isUserAtBottom && isPaused, let pendingID = pendingNodeID {
+            // User scrolled down, resume delivery
+            resumePendingContent(pendingID)
+        } else if isPaused && pendingNodeID != nil {
+            // Also resume if user is within reasonable distance of bottom
+            // This handles cases where user might not reach exact bottom
+            if isAtBottom || isNearBottom(threshold: 100) {
+                if let pendingID = pendingNodeID {
+                    resumePendingContent(pendingID)
                 }
+            }
+        }
+    }
+    
+    /// Called when user scrolls down - used to trigger content delivery
+    func userScrolledDown() {
+        // If we have paused content and user is scrolling down, resume delivery
+        if isPaused, let pendingID = pendingNodeID {
+            resumePendingContent(pendingID)
+        }
+    }
+    
+    private func isNearBottom(threshold: CGFloat) -> Bool {
+        // This would need to be calculated based on scroll offset
+        // For now, we'll rely on the isAtBottom flag
+        // Could be enhanced with actual scroll offset tracking
+        return false
+    }
+    
+    private func resumePendingContent(_ pendingID: String) {
+        isPaused = false
+        hasMoreContent = false
+        pendingNodeID = nil
+        
+        // Check if we need to show branch options
+        if let node = graph?.node(for: pendingID) {
+            switch node.type {
+            case .aporiaSystem:
+                // Filter out already chosen options
+                let allOptions = node.nextChunkIDs.compactMap { graph?.node(for: $0) }
+                let chosenIds = chosenBranches[pendingID] ?? Set<String>()
+                let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
+                
+                if availableOptions.isEmpty && !allOptions.isEmpty {
+                    // All options explored, advance
+                    handleAllOptionsExplored(at: pendingID, with: allOptions)
+                } else {
+                    branchOptions = availableOptions
+                }
+            case .aporiaUser:
+                // Check if this was already chosen
+                if let parentId = findParentNode(for: pendingID) {
+                    let chosenIds = chosenBranches[parentId] ?? Set<String>()
+                    if !chosenIds.contains(pendingID) {
+                        branchOptions = [node]
+                    } else {
+                        advance(to: node.nextChunkIDs.first)
+                    }
+                } else {
+                    branchOptions = [node]
+                }
+            default:
+                advance(to: pendingID)
             }
         }
     }
