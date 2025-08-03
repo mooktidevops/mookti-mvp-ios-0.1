@@ -22,9 +22,34 @@ final class ContentGraphService: ObservableObject {
     
     /// Track which modules are loaded
     @Published private(set) var loadedModules: [String] = []
+    
+    /// Module metadata for navigation
+    struct ModuleInfo {
+        let name: String
+        let displayName: String
+        let prefix: String
+        let startNodeId: String
+        let endNodeId: String?
+        let nextModulePrefix: String?
+    }
+    
+    /// Module configuration
+    @Published private(set) var modules: [ModuleInfo] = []
 
     /// Convenience accessor for a node by ID.
     func node(for id: String) -> LearningNode? { nodes[id] }
+    
+    /// Get the module info for a given node ID
+    func moduleForNode(_ nodeId: String) -> ModuleInfo? {
+        // Extract prefix from node ID
+        if nodeId.contains("_") {
+            let prefix = String(nodeId.split(separator: "_").first ?? "")
+            return modules.first { $0.prefix == prefix }
+        } else {
+            // Unprefixed IDs belong to intro module
+            return modules.first { $0.prefix == "intro" }
+        }
+    }
 
     // MARK: - Life‑cycle
     
@@ -41,33 +66,119 @@ final class ContentGraphService: ObservableObject {
     
     /// Load all learning path modules
     private func loadAllModules(from bundle: Bundle) async {
-        // Define all modules to load in order
-        let modules = [
-            "workplace_success_lp_intro_module",
-            "cq_intro_module",
-            "cq_power_hierarchy_relationships",
-            "cq_dealing_with_unknowns",
-            "cq_consensus_building",
-            "cq_being_in_sync"
+        // Define module configuration with proper transitions
+        let moduleConfigs = [
+            ModuleInfo(
+                name: "workplace_success_lp_intro_module",
+                displayName: "Workplace Success Introduction",
+                prefix: "intro",
+                startNodeId: "1",
+                endNodeId: "67",
+                nextModulePrefix: "cq1"
+            ),
+            ModuleInfo(
+                name: "cq_intro_module",
+                displayName: "Cultural Intelligence Introduction",
+                prefix: "cq1",
+                startNodeId: "cq1_1",
+                endNodeId: "cq1_23",
+                nextModulePrefix: "cq2"
+            ),
+            ModuleInfo(
+                name: "cq_power_hierarchy_relationships",
+                displayName: "Power, Hierarchy, and Relationships",
+                prefix: "cq2",
+                startNodeId: "cq2_1",
+                endNodeId: "cq2_27",
+                nextModulePrefix: "cq3"
+            ),
+            ModuleInfo(
+                name: "cq_dealing_with_unknowns",
+                displayName: "Dealing with Unknowns",
+                prefix: "cq3",
+                startNodeId: "cq3_1",
+                endNodeId: "cq3_32",
+                nextModulePrefix: "cq4"
+            ),
+            ModuleInfo(
+                name: "cq_consensus_building",
+                displayName: "Consensus Building",
+                prefix: "cq4",
+                startNodeId: "cq4_1",
+                endNodeId: "cq4_33",
+                nextModulePrefix: "cq5"
+            ),
+            ModuleInfo(
+                name: "cq_being_in_sync",
+                displayName: "Being In-Sync: Communication and Time",
+                prefix: "cq5",
+                startNodeId: "cq5_1",
+                endNodeId: "cq5_35",
+                nextModulePrefix: nil
+            )
         ]
         
+        self.modules = moduleConfigs
         var allNodes: [String: LearningNode] = [:]
         
-        for moduleName in modules {
-            print("📚 Loading module: \(moduleName)")
-            let moduleNodes = await loadCSV(named: moduleName, from: bundle)
+        for (index, moduleInfo) in moduleConfigs.enumerated() {
+            print("📚 Loading module: \(moduleInfo.name) with prefix: \(moduleInfo.prefix)")
+            let moduleNodes = await loadCSV(named: moduleInfo.name, from: bundle)
             
-            // Merge nodes, checking for ID conflicts
-            for (id, node) in moduleNodes {
-                if allNodes[id] != nil {
-                    print("⚠️ Warning: Duplicate node ID \(id) found in \(moduleName)")
+            // Process nodes with proper prefixing
+            for (originalId, var node) in moduleNodes {
+                // For intro module, keep original IDs; for others, add prefix
+                let prefixedId = (moduleInfo.prefix == "intro") ? originalId : "\(moduleInfo.prefix)_\(originalId)"
+                
+                // Update the node's ID
+                node.id = prefixedId
+                
+                // Update nextChunkIDs to use prefixed versions
+                if moduleInfo.prefix != "intro" && !node.nextChunkIDs.isEmpty {
+                    node.nextChunkIDs = node.nextChunkIDs.map { nextId in
+                        // Don't prefix if it's already prefixed
+                        if nextId.contains("_") {
+                            return nextId
+                        } else {
+                            return "\(moduleInfo.prefix)_\(nextId)"
+                        }
+                    }
                 }
-                allNodes[id] = node
+                
+                allNodes[prefixedId] = node
+            }
+            
+            // Create transition node at the end of each module (except last)
+            if let nextModule = moduleInfo.nextModulePrefix,
+               let endNodeId = moduleInfo.endNodeId {
+                
+                // Find the actual end node ID (prefixed)
+                let actualEndId = (moduleInfo.prefix == "intro") ? endNodeId : "\(moduleInfo.prefix)_\(endNodeId.split(separator: "_").last ?? Substring(endNodeId))"
+                
+                // Update the end node to point to transition
+                if var endNode = allNodes[actualEndId] {
+                    let transitionId = "\(moduleInfo.prefix)_transition"
+                    endNode.nextChunkIDs = [transitionId]
+                    endNode.nextAction = "getNextChunk"
+                    allNodes[actualEndId] = endNode
+                    
+                    // Create transition node
+                    let nextModuleInfo = moduleConfigs.first { $0.prefix == nextModule }
+                    let transitionNode = LearningNode(
+                        id: transitionId,
+                        type: .system,
+                        content: "🎉 Excellent work completing \(moduleInfo.displayName)! Ready to continue to \(nextModuleInfo?.displayName ?? "the next module")?",
+                        nextAction: "getNextChunk",
+                        nextChunkIDs: [nextModuleInfo?.startNodeId ?? "\(nextModule)_1"]
+                    )
+                    allNodes[transitionId] = transitionNode
+                    print("🌉 Created transition from \(moduleInfo.prefix) to \(nextModule)")
+                }
             }
             
             if !moduleNodes.isEmpty {
-                loadedModules.append(moduleName)
-                print("✅ Loaded \(moduleNodes.count) nodes from \(moduleName)")
+                loadedModules.append(moduleInfo.name)
+                print("✅ Loaded \(moduleNodes.count) nodes from \(moduleInfo.name)")
             }
         }
         

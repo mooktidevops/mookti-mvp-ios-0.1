@@ -409,16 +409,46 @@ final class EllenViewModel: ObservableObject {
         let ellenMessages = aiService.transcript.filter { $0.role == .ellen }
         if let lastEllenMessage = ellenMessages.last {
             print("✅ EllenViewModel: Received AI response: '\(String(lastEllenMessage.content.prefix(100)))...'")
+            
+            // Check if response contains CONTINUE_PATH marker
+            var messageContent = lastEllenMessage.content
+            var shouldContinuePath = false
+            
+            if messageContent.contains("[CONTINUE_PATH]") {
+                print("🎯 EllenViewModel: Detected CONTINUE_PATH marker - will advance to next node")
+                messageContent = messageContent.replacingOccurrences(of: "\n\n[CONTINUE_PATH]", with: "")
+                shouldContinuePath = true
+            }
+            
             // Create a new message with AI-generated or AI-retrieved source
             // For now, assuming all Ellen responses are AI-generated
             // TODO: Update this when we implement RAG retrieval to use .aiRetrieved
             let aiMessage = Message(
                 role: lastEllenMessage.role,
-                content: lastEllenMessage.content,
+                content: messageContent,
                 source: .aiGenerated
             )
             messages.append(aiMessage)
             persist(aiMessage)
+            
+            // If return_to_path was used, continue to next node after a delay
+            if shouldContinuePath {
+                print("📍 EllenViewModel: Continuing to next node after return_to_path")
+                Task {
+                    // Wait for user to read the transition message
+                    try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                    
+                    // Continue to next node in the learning path
+                    if let currentNode = currentNodeID,
+                       let node = graph?.node(for: currentNode),
+                       let nextNodeId = node.nextChunkIDs.first {
+                        print("➡️ EllenViewModel: Advancing from \(currentNode) to \(nextNodeId)")
+                        advance(to: nextNodeId)
+                    } else {
+                        print("⚠️ EllenViewModel: Could not find next node to advance to")
+                    }
+                }
+            }
         } else {
             print("⚠️ EllenViewModel: No AI response received")
             let fallbackMessage = Message(role: .ellen, content: "I'm having trouble responding right now. Could you try rephrasing your question?", source: .aiGenerated)

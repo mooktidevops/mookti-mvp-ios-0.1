@@ -209,6 +209,7 @@ struct CloudAIService {
                 
                 // Process tool calls and append instructions to response
                 var responseWithTools = vercelResponse.content
+                var shouldContinuePath = false
                 
                 for toolCall in toolCalls {
                     switch toolCall.tool {
@@ -216,6 +217,9 @@ struct CloudAIService {
                         if let transitionMsg = toolCall.input.transitionMessage {
                             // Append transition message to guide back to path
                             responseWithTools += "\n\n\(transitionMsg)"
+                            
+                            // Mark that we should continue the learning path
+                            shouldContinuePath = true
                             
                             // Log the transition type for client handling
                             logger.info("🔄 Return to path: \(toolCall.input.transitionType ?? "unknown")")
@@ -239,6 +243,12 @@ struct CloudAIService {
                     default:
                         logger.warning("⚠️ Unknown tool called: \(toolCall.tool)")
                     }
+                }
+                
+                // Add a special marker if we should continue the path
+                if shouldContinuePath {
+                    responseWithTools += "\n\n[CONTINUE_PATH]"
+                    logger.info("🎯 CloudAIService: Added CONTINUE_PATH marker for EllenViewModel")
                 }
                 
                 logger.info("✅ CloudAIService: Successfully returned response with tools, length: \(responseWithTools.count), duration: \(String(format: "%.3f", duration))s")
