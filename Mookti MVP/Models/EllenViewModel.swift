@@ -24,6 +24,7 @@ final class EllenViewModel: ObservableObject {
     private var pendingNodeID: String?
     private var currentViewportHeight: CGFloat = 0
     private var isUserAtBottom = true
+    private var isWaitingForInitialLoad = false
     
     // Track chosen branches to prevent loops
     // Key: parent aporia-system node ID, Value: Set of chosen option node IDs
@@ -76,7 +77,11 @@ final class EllenViewModel: ObservableObject {
             
             // Start lesson at sequence_id = "1" and deliver initial content
             print("🎯 EllenViewModel: Configuration ready, waiting for viewport...")
-            // Content will be loaded when viewport height is received
+            isWaitingForInitialLoad = true
+            // Try to load content if viewport is already available
+            if currentViewportHeight > 0 {
+                loadInitialContent()
+            }
             print("✅ EllenViewModel: Configuration complete")
         } else {
             print("⏳ EllenViewModel: Waiting for content graph to load...")
@@ -98,7 +103,11 @@ final class EllenViewModel: ObservableObject {
                     
                     // Start lesson at sequence_id = "1" and deliver initial content
                     print("🎯 EllenViewModel: Configuration ready, waiting for viewport...")
-                    // Content will be loaded when viewport height is received
+                    isWaitingForInitialLoad = true
+                    // Try to load content if viewport is already available
+                    if currentViewportHeight > 0 {
+                        loadInitialContent()
+                    }
                     print("✅ EllenViewModel: Configuration complete")
                     break
                 }
@@ -108,6 +117,9 @@ final class EllenViewModel: ObservableObject {
     
     /// Load initial content for new users
     private func loadInitialContent() {
+        // Prevent multiple loads
+        guard isWaitingForInitialLoad else { return }
+        
         // Set initial scroll state
         isUserAtBottom = true
         // Don't load content yet if viewport height isn't known
@@ -115,6 +127,9 @@ final class EllenViewModel: ObservableObject {
             print("⏳ EllenViewModel: Deferring content load until viewport height is known")
             return
         }
+        
+        // Clear the waiting flag
+        isWaitingForInitialLoad = false
         
         print("🚀 EllenViewModel: Starting content delivery from node 1 (viewport: \(currentViewportHeight))")
         
@@ -598,8 +613,8 @@ final class EllenViewModel: ObservableObject {
         currentViewportHeight = viewportHeight
         isAtBottomRequired = false
         
-        // If this is the first time we're getting viewport height and we have no messages yet, load initial content
-        if hadNoViewport && viewportHeight > 0 && messages.isEmpty && graph != nil {
+        // If this is the first time we're getting viewport height and we're waiting to load initial content
+        if hadNoViewport && viewportHeight > 0 && isWaitingForInitialLoad {
             print("📱 EllenViewModel: Viewport height received (\(viewportHeight)), loading initial content")
             loadInitialContent()
             return
