@@ -420,16 +420,41 @@ final class EllenViewModel: ObservableObject {
                 shouldContinuePath = true
             }
             
-            // Create a new message with AI-generated or AI-retrieved source
-            // For now, assuming all Ellen responses are AI-generated
-            // TODO: Update this when we implement RAG retrieval to use .aiRetrieved
-            let aiMessage = Message(
-                role: lastEllenMessage.role,
-                content: messageContent,
-                source: .aiGenerated
-            )
-            messages.append(aiMessage)
-            persist(aiMessage)
+            // Split multi-paragraph Claude responses into separate messages
+            let paragraphs = messageContent.components(separatedBy: "\n\n").filter { !$0.isEmpty }
+            
+            if paragraphs.count > 1 {
+                print("📄 Splitting Claude response into \(paragraphs.count) separate messages")
+                // Add each paragraph as a separate message with typing delays
+                Task {
+                    for (index, paragraph) in paragraphs.enumerated() {
+                        // Show typing indicator between messages
+                        if index > 0 {
+                            isTyping = true
+                            let delay = calculateMessageDelay() * 0.3 // Shorter delay between paragraphs
+                            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                            isTyping = false
+                        }
+                        
+                        let aiMessage = Message(
+                            role: lastEllenMessage.role,
+                            content: paragraph.trimmingCharacters(in: .whitespacesAndNewlines),
+                            source: .aiGenerated
+                        )
+                        messages.append(aiMessage)
+                        persist(aiMessage)
+                    }
+                }
+            } else {
+                // Single paragraph response - add as-is
+                let aiMessage = Message(
+                    role: lastEllenMessage.role,
+                    content: messageContent,
+                    source: .aiGenerated
+                )
+                messages.append(aiMessage)
+                persist(aiMessage)
+            }
             
             // If return_to_path was used, continue to next node after a delay
             if shouldContinuePath {
@@ -529,6 +554,35 @@ final class EllenViewModel: ObservableObject {
         // HIG Compliance: Remove last Ellen reply + the originating user question
         messages.removeLast(2)
 
+    }
+    
+    // MARK: - Content Chunking
+    private func splitLongContent(_ content: String, maxChunkSize: Int = 500) -> [String] {
+        // Split by paragraphs first
+        let paragraphs = content.components(separatedBy: "\n\n")
+        var chunks: [String] = []
+        var currentChunk = ""
+        
+        for paragraph in paragraphs {
+            // If adding this paragraph would exceed chunk size, save current and start new
+            if !currentChunk.isEmpty && (currentChunk.count + paragraph.count + 2) > maxChunkSize {
+                chunks.append(currentChunk.trimmingCharacters(in: .whitespacesAndNewlines))
+                currentChunk = paragraph
+            } else {
+                // Add paragraph to current chunk
+                if !currentChunk.isEmpty {
+                    currentChunk += "\n\n"
+                }
+                currentChunk += paragraph
+            }
+        }
+        
+        // Add final chunk if not empty
+        if !currentChunk.isEmpty {
+            chunks.append(currentChunk.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        
+        return chunks.isEmpty ? [content] : chunks
     }
     
     // MARK: - Scroll Management
@@ -678,12 +732,6 @@ final class EllenViewModel: ObservableObject {
         
         print("📏 shouldPauseForScroll: estimatedHeight=\(estimatedHeight), viewport=\(currentViewportHeight)")
         
-        // Increase threshold - if message is longer than 60% of viewport, deliver anyway
-        if estimatedHeight > currentViewportHeight * 0.6 {
-            print("📏 shouldPauseForScroll: Message too long, delivering anyway")
-            return false
-        }
-        
         // Calculate remaining space with more generous buffer
         // Account for input bar (~80), typing indicator (~40), and minimal padding (~20)
         let uiChromeHeight: CGFloat = 140
@@ -707,13 +755,14 @@ final class EllenViewModel: ObservableObject {
             currentlyVisibleHeight += 40
         }
         
-        // More generous threshold - only pause if really needed
+        // Calculate if we need to pause for scroll
         let totalHeightAfterNewContent = currentlyVisibleHeight + estimatedHeight
         
         print("📏 shouldPauseForScroll: currentlyVisible=\(currentlyVisibleHeight), totalAfter=\(totalHeightAfterNewContent), available=\(availableViewportHeight)")
         
-        // Only pause if new content would significantly exceed viewport
-        let shouldPause = totalHeightAfterNewContent > availableViewportHeight * 1.2
+        // Pause if new content would push content off screen (using 0.9 to account for some buffer)
+        // This ensures users have control over content flow
+        let shouldPause = totalHeightAfterNewContent > availableViewportHeight * 0.9
         print("📏 shouldPauseForScroll: returning \(shouldPause)")
         return shouldPause
     }

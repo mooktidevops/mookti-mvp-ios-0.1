@@ -218,11 +218,26 @@ struct CloudAIService {
                             // Append transition message to guide back to path
                             responseWithTools += "\n\n\(transitionMsg)"
                             
-                            // Mark that we should continue the learning path
-                            shouldContinuePath = true
+                            // Check for auto-continue conditions
+                            let transitionType = toolCall.input.transitionType ?? "unknown"
+                            let hasQuestion = responseWithTools.contains("?")
+                            let userRequestedReturn = toolCall.input.userRequested ?? false
+                            
+                            // Auto-continue if:
+                            // - User explicitly requested to return/continue
+                            // - It's a redirect (tangent_redirect)
+                            // - It's "will be covered" (content coming up)
+                            // - It's answered_returning WITHOUT a question
+                            if userRequestedReturn ||
+                               transitionType == "tangent_redirect" ||
+                               transitionType == "will_be_covered" ||
+                               (transitionType == "answered_returning" && !hasQuestion) {
+                                shouldContinuePath = true
+                                logger.info("🎯 Will auto-continue path after transition")
+                            }
                             
                             // Log the transition type for client handling
-                            logger.info("🔄 Return to path: \(toolCall.input.transitionType ?? "unknown")")
+                            logger.info("🔄 Return to path: \(transitionType) (has question: \(hasQuestion), user requested: \(userRequestedReturn))")
                         }
                         
                     case "suggest_comprehension_check":
@@ -314,6 +329,7 @@ private struct ToolInput: Codable {
     let transitionType: String?
     let transitionMessage: String?
     let conceptualBridge: String?
+    let userRequested: Bool?
     
     // Search fields
     let query: String?
@@ -334,6 +350,7 @@ private struct ToolInput: Codable {
         case transitionType = "transition_type"
         case transitionMessage = "transition_message"
         case conceptualBridge = "conceptual_bridge"
+        case userRequested = "user_requested"
         case query
         case searchScope = "search_scope"
         case reason
