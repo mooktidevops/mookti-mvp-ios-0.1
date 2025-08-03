@@ -75,8 +75,8 @@ final class EllenViewModel: ObservableObject {
             }
             
             // Start lesson at sequence_id = "1" and deliver initial content
-            print("🎯 EllenViewModel: Loading initial content...")
-            loadInitialContent()
+            print("🎯 EllenViewModel: Configuration ready, waiting for viewport...")
+            // Content will be loaded when viewport height is received
             print("✅ EllenViewModel: Configuration complete")
         } else {
             print("⏳ EllenViewModel: Waiting for content graph to load...")
@@ -97,8 +97,8 @@ final class EllenViewModel: ObservableObject {
                     }
                     
                     // Start lesson at sequence_id = "1" and deliver initial content
-                    print("🎯 EllenViewModel: Loading initial content...")
-                    loadInitialContent()
+                    print("🎯 EllenViewModel: Configuration ready, waiting for viewport...")
+                    // Content will be loaded when viewport height is received
                     print("✅ EllenViewModel: Configuration complete")
                     break
                 }
@@ -110,8 +110,13 @@ final class EllenViewModel: ObservableObject {
     private func loadInitialContent() {
         // Set initial scroll state
         isUserAtBottom = true
-        currentViewportHeight = 600 // Default estimate until actual value comes from view
-        print("🚀 EllenViewModel: Starting content delivery from node 1")
+        // Don't load content yet if viewport height isn't known
+        if currentViewportHeight <= 0 {
+            print("⏳ EllenViewModel: Deferring content load until viewport height is known")
+            return
+        }
+        
+        print("🚀 EllenViewModel: Starting content delivery from node 1 (viewport: \(currentViewportHeight))")
         
         // Debug: Check if node exists
         if let node = graph?.node(for: "1") {
@@ -588,9 +593,17 @@ final class EllenViewModel: ObservableObject {
     // MARK: - Scroll Management
     func updateScrollPosition(isAtBottom: Bool, viewportHeight: CGFloat) {
         let wasAtBottom = isUserAtBottom
+        let hadNoViewport = currentViewportHeight <= 0
         isUserAtBottom = isAtBottom
         currentViewportHeight = viewportHeight
         isAtBottomRequired = false
+        
+        // If this is the first time we're getting viewport height and we have no messages yet, load initial content
+        if hadNoViewport && viewportHeight > 0 && messages.isEmpty && graph != nil {
+            print("📱 EllenViewModel: Viewport height received (\(viewportHeight)), loading initial content")
+            loadInitialContent()
+            return
+        }
         
         // Resume if user has scrolled down (not necessarily to bottom) and we have pending content
         // This prevents indefinite pause - any downward scroll triggers continuation
