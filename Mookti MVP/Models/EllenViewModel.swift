@@ -83,6 +83,14 @@ final class EllenViewModel: ObservableObject {
         isUserAtBottom = true
         currentViewportHeight = 600 // Default estimate until actual value comes from view
         print("🚀 EllenViewModel: Starting content delivery from node 1")
+        
+        // Debug: Check if node exists
+        if let node = graph?.node(for: "1") {
+            print("✅ Node 1 found: type=\(node.type), content=\(node.content.prefix(50))...")
+        } else {
+            print("❌ Node 1 not found in graph!")
+        }
+        
         advance(to: "1")
     }
 
@@ -143,8 +151,12 @@ final class EllenViewModel: ObservableObject {
     // MARK: - Graph traversal
     private func advance(to id: String?) {
         guard let id,
-              let node = graph?.node(for: id) else { return }
+              let node = graph?.node(for: id) else { 
+            print("⚠️ advance: Cannot advance to id=\(id ?? "nil") - node not found")
+            return 
+        }
 
+        print("📍 advance: Moving to node \(id), type=\(node.type)")
         currentNodeID = id
         
         // Check if we should pause before delivering this message
