@@ -7,11 +7,20 @@
 
 import SwiftUI
 
+/// Preference key for tracking view height
+struct HeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 /// Swipeable carousel used for `card-carousel` learning nodes.
 struct CardCarouselView: View {
 
     let payload: CardCarouselPayload
     @State private var index = 0
+    @State private var cardHeight: CGFloat = 240
     
     /// Convert HTML-like tags to AttributedString
     private func formattedText(_ text: String) -> AttributedString {
@@ -44,14 +53,26 @@ struct CardCarouselView: View {
             ZStack {
                 TabView(selection: $index) {
                     ForEach(Array(payload.cards.enumerated()), id: \.offset) { i, card in
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 12) {
                             Text(formattedText(card.title))
-                                .font(.title3).bold()
-                            Text(formattedText(card.content))
-                                .font(.body)
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .fixedSize(horizontal: false, vertical: true)
+                            
+                            ScrollView {
+                                Text(formattedText(card.content))
+                                    .font(.body)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .frame(maxHeight: .infinity)
                         }
                         .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .background(
+                            GeometryReader { geometry in
+                                Color.clear.preference(key: HeightPreferenceKey.self, value: geometry.size.height)
+                            }
+                        )
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .padding(.horizontal, 40)  // Increased padding to make room for arrows
@@ -60,7 +81,14 @@ struct CardCarouselView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .tabViewStyle(.page(indexDisplayMode: .always))
-                .frame(height: 240)            // Increased height for better readability
+                .frame(minHeight: 240, maxHeight: 400)  // Dynamic height with min/max constraints
+                .onPreferenceChange(HeightPreferenceKey.self) { height in
+                    if height > 0 {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            cardHeight = min(400, max(240, height + 40))
+                        }
+                    }
+                }
                 
                 // Navigation arrows overlay
                 HStack {
@@ -97,7 +125,7 @@ struct CardCarouselView: View {
                     }
                 }
                 .allowsHitTesting(true)
-                .frame(height: 240)
+                .frame(minHeight: 240, maxHeight: 400)
             }
         }
         .padding(.vertical, 8)

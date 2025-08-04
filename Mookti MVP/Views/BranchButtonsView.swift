@@ -12,36 +12,55 @@ struct FlowLayout: Layout {
     var spacing: CGFloat = 8
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? 300
         var width: CGFloat = 0
         var height: CGFloat = 0
         var rowHeight: CGFloat = 0
-        let maxWidth = proposal.width ?? .infinity
+        var rowWidth: CGFloat = 0
+        
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if width + size.width > maxWidth {
-                width = 0
+            let idealSize = subview.sizeThatFits(.unspecified)
+            // Allow subview to take up to full width if needed
+            let size = subview.sizeThatFits(ProposedViewSize(width: min(idealSize.width, maxWidth - spacing * 2), height: nil))
+            
+            if rowWidth > 0 && rowWidth + spacing + size.width > maxWidth {
+                // Start new row
+                width = max(width, rowWidth)
                 height += rowHeight + spacing
+                rowWidth = 0
                 rowHeight = 0
             }
+            
             rowHeight = max(rowHeight, size.height)
-            width += size.width + spacing
+            rowWidth += (rowWidth > 0 ? spacing : 0) + size.width
         }
+        
+        width = max(width, rowWidth)
         height += rowHeight
-        return CGSize(width: maxWidth, height: height)
+        
+        return CGSize(width: min(width, maxWidth), height: height)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let maxWidth = bounds.width
         var x: CGFloat = bounds.minX
         var y: CGFloat = bounds.minY
         var rowHeight: CGFloat = 0
+        
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x + size.width > bounds.maxX {
+            let idealSize = subview.sizeThatFits(.unspecified)
+            // Allow subview to take up to full width if needed
+            let constrainedProposal = ProposedViewSize(width: min(idealSize.width, maxWidth - spacing * 2), height: nil)
+            let size = subview.sizeThatFits(constrainedProposal)
+            
+            if x > bounds.minX && x + size.width > bounds.maxX {
+                // Start new row
                 x = bounds.minX
                 y += rowHeight + spacing
                 rowHeight = 0
             }
-            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(width: size.width, height: size.height))
+            
+            subview.place(at: CGPoint(x: x, y: y), proposal: constrainedProposal)
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
         }
@@ -65,16 +84,20 @@ struct BranchButtonsView: View {
                 } label: {
                     Text(node.content)
                         .font(.subheadline)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .lineLimit(nil)  // Allow text to wrap to multiple lines
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)  // Allow vertical expansion
+                        .frame(minWidth: 60)  // Ensure minimum width
                         .background(Color.accentColor.opacity(0.15))
                         .foregroundColor(.accentColor)
-                        .clipShape(Capsule())
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
 }
