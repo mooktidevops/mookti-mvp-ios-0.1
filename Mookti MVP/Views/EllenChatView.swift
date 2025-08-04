@@ -92,9 +92,16 @@ struct EllenChatView: View {
                         
                         // Add extra space when paused to enable scrolling
                         if vm.hasMoreContent {
-                            Color.clear
-                                .frame(height: 200)
-                                .id("scroll-spacer")
+                            VStack {
+                                Text("Scroll down to continue...")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.top, 20)
+                                
+                                Color.clear
+                                    .frame(height: 300) // Increased height for more scroll room
+                            }
+                            .id("scroll-spacer")
                         }
                     }
                     .padding(.horizontal)
@@ -119,10 +126,13 @@ struct EllenChatView: View {
                     updateScrollState()
                     
                     // Detect scroll direction and notify view model
-                    if oldOffset != 0 && value < oldOffset {
-                        // User scrolled down (offset becomes more negative)
-                        print("🔽 Scroll detected: oldOffset=\(oldOffset), newOffset=\(value)")
-                        vm.userScrolledDown()
+                    // When paused with more content, any downward scroll should continue
+                    if vm.hasMoreContent && oldOffset != value {
+                        // Check if user scrolled down (offset becomes more negative)
+                        if value < oldOffset - 5 { // 5pt threshold to avoid tiny movements
+                            print("🔽 Scroll down detected while paused: oldOffset=\(oldOffset), newOffset=\(value)")
+                            vm.userScrolledDown()
+                        }
                     }
                 }
                 .background(
