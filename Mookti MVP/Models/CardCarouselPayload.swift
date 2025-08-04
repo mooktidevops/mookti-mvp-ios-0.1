@@ -31,34 +31,66 @@ struct CardCarouselPayload: Codable, Hashable, Equatable {
 
 extension LearningNode {
     /// Attempt to decode `content` as CardCarouselPayload.
-    /// Handles single‑quoted JSON from CSV by converting to double quotes.
+    /// Handles JavaScript-style object notation from CSV by converting to proper JSON.
     func asCarouselPayload() -> CardCarouselPayload? {
         guard type == .cardCarousel else { return nil }
 
-        // More robust JSON fixing to handle various formatting issues
-        // First, handle markdown formatting before quote replacement
-        let markdownProcessed = content
-            // Handle bold markdown **text**
-            .replacingOccurrences(of: #"\*\*([^*]+)\*\*"#,
-                                  with: "<b>$1</b>",
-                                  options: .regularExpression)
-            // Handle italic markdown *text*
-            .replacingOccurrences(of: #"(?<!\*)\*([^*]+)\*(?!\*)"#,
-                                  with: "<i>$1</i>",
-                                  options: .regularExpression)
+        // The content comes in JavaScript object notation like:
+        // {heading: 'text', cards: [{title: 'text', content: 'text with apostrophes'}]}
         
-        // Then fix JSON formatting
-        let fixedJSON = markdownProcessed
-            // Replace single quotes with double quotes, but not within already quoted strings
-            .replacingOccurrences(of: #"(?<![\\'])'(?![\\'])"#,
-                                  with: "\"",
-                                  options: .regularExpression)
-            // Replace unquoted keys with quoted keys (handles 'heading:', 'cards:', etc.)
-            .replacingOccurrences(of: #"(\{|,)\s*(\w+):"#,
-                                  with: "$1\"$2\":",
-                                  options: .regularExpression)
-            // Handle null values
-            .replacingOccurrences(of: ": null", with: ": null")
+        var fixedJSON = content
+        
+        // Step 1: Fix object keys - add quotes around them
+        fixedJSON = fixedJSON
+            .replacingOccurrences(of: "heading:", with: "\"heading\":")
+            .replacingOccurrences(of: "cards:", with: "\"cards\":")
+            .replacingOccurrences(of: "title:", with: "\"title\":")
+            .replacingOccurrences(of: "content:", with: "\"content\":")
+        
+        // Step 2: Replace single-quoted strings with double-quoted strings
+        // This is complex because we need to handle apostrophes inside the strings
+        // We'll use a more manual approach
+        
+        var result = ""
+        var inString = false
+        var stringDelimiter: Character? = nil
+        var i = fixedJSON.startIndex
+        
+        while i < fixedJSON.endIndex {
+            let char = fixedJSON[i]
+            
+            if !inString {
+                if char == "'" || char == "\"" {
+                    inString = true
+                    stringDelimiter = char
+                    result.append("\"") // Always use double quotes in output
+                } else {
+                    result.append(char)
+                }
+            } else {
+                // We're inside a string
+                if char == stringDelimiter && (i == fixedJSON.startIndex || fixedJSON[fixedJSON.index(before: i)] != "\\") {
+                    // End of string
+                    inString = false
+                    stringDelimiter = nil
+                    result.append("\"") // Always use double quotes in output
+                } else if char == "\"" {
+                    // Escape double quotes inside strings
+                    result.append("\\\"")
+                } else if char == "\\" && i < fixedJSON.index(before: fixedJSON.endIndex) && fixedJSON[fixedJSON.index(after: i)] == "'" {
+                    // Skip escaped single quotes
+                    result.append("'")
+                    i = fixedJSON.index(after: i)
+                } else {
+                    // Keep everything else as-is (including apostrophes)
+                    result.append(char)
+                }
+            }
+            
+            i = fixedJSON.index(after: i)
+        }
+        
+        fixedJSON = result
 
         do {
             let decoder = JSONDecoder()
