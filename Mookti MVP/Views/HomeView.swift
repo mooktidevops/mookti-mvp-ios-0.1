@@ -69,44 +69,67 @@ struct HomeView: View {
                             .padding(.horizontal, 24)
                     }
                     
-                    // Current Focus Card
-                    HStack(alignment: .center, spacing: 20) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Current Focus:")
-                                .font(.custom("Inter-Regular", size: 18))
-                                .foregroundColor(Color.theme.textPrimary)
-                                .italic()
+                    // Current Focus Card with Demo Marker
+                    ZStack {
+                        HStack(alignment: .center, spacing: 20) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Current Focus:")
+                                    .font(.custom("Inter-Regular", size: 18))
+                                    .foregroundColor(Color.theme.textPrimary)
+                                    .italic()
+                                
+                                Text("Intro to Cultural")
+                                    .font(.custom("Inter-Regular", size: 18))
+                                    .foregroundColor(Color.theme.textPrimary)
+                                
+                                Text("Intelligence")
+                                    .font(.custom("Inter-Regular", size: 18))
+                                    .foregroundColor(Color.theme.textPrimary)
+                            }
                             
-                            Text("Intro to Cultural")
-                                .font(.custom("Inter-Regular", size: 18))
-                                .foregroundColor(Color.theme.textPrimary)
+                            Spacer()
                             
-                            Text("Intelligence")
-                                .font(.custom("Inter-Regular", size: 18))
-                                .foregroundColor(Color.theme.textPrimary)
+                            Button(action: onContinue) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color.theme.accent)
+                                        .frame(width: 140, height: 140)
+                                    
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color(hex: "E5E5E5"))
+                                        .frame(width: 140, height: 140)
+                                        .mask(
+                                            GeometryReader { geometry in
+                                                Rectangle()
+                                                    .frame(width: geometry.size.width * 0.4)
+                                                    .offset(x: geometry.size.width * 0.6)
+                                            }
+                                        )
+                                }
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                         
-                        Spacer()
-                        
-                        Button(action: onContinue) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color.theme.accent)
-                                    .frame(width: 140, height: 140)
-                                
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color(hex: "E5E5E5"))
-                                    .frame(width: 140, height: 140)
-                                    .mask(
-                                        GeometryReader { geometry in
-                                            Rectangle()
-                                                .frame(width: geometry.size.width * 0.4)
-                                                .offset(x: geometry.size.width * 0.6)
-                                        }
+                        // Demo Marker
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Text("FOR DEMO:\nTAP HERE")
+                                    .font(.custom("Inter-Regular", size: 12))
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        Color.red
+                                            .cornerRadius(8)
+                                            .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                                     )
+                                    .offset(x: -20, y: 10) // Position near the button
                             }
                         }
-                        .buttonStyle(PlainButtonStyle())
                     }
                     .padding(.horizontal, 24)
                     .padding(.vertical, 8)

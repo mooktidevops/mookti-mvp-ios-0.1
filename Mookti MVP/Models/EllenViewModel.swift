@@ -29,6 +29,9 @@ final class EllenViewModel: ObservableObject {
     // Track chosen branches to prevent loops
     // Key: parent aporia-system node ID, Value: Set of chosen option node IDs
     private var chosenBranches: [String: Set<String>] = [:]
+    
+    // Track ALL chosen aporia-user nodes globally to hide them everywhere
+    private var globallyChosenOptions: Set<String> = []
 
     private var aiService: EllenAIService?
     private var cancellables = Set<AnyCancellable>()
@@ -53,7 +56,8 @@ final class EllenViewModel: ObservableObject {
         
         // Reset chosen branches for each new session (for demo/preview)
         chosenBranches.removeAll()
-        print("🔄 EllenViewModel: Reset chosen branches for new session")
+        globallyChosenOptions.removeAll()
+        print("🔄 EllenViewModel: Reset chosen branches and global options for new session")
         
         print("📊 EllenViewModel: Setting up conversation history")
         self.history = history
@@ -155,15 +159,17 @@ final class EllenViewModel: ObservableObject {
 
     // MARK: - Branch choice
     func chooseBranch(_ node: LearningNode) {
-        // For MVP demo: Disable branch tracking to always show all options
-        // For production, uncomment these lines to track chosen branches:
-        /*
+        // Track chosen branches globally - hide this option everywhere
+        globallyChosenOptions.insert(node.id)
+        print("📌 Globally tracked choice: \(node.id)")
+        print("   All chosen options: \(globallyChosenOptions)")
+        
+        // Also track per-parent for loop detection
         if let currentNode = currentNodeID {
             var choices = chosenBranches[currentNode] ?? Set<String>()
             choices.insert(node.id)
             chosenBranches[currentNode] = choices
         }
-        */
         
         // Add learner choice bubble
         let userMessage = Message(role: .user, content: node.content, source: .csv)
@@ -325,16 +331,11 @@ final class EllenViewModel: ObservableObject {
             // When skipPauseCheck is true (resuming from pause), we've already delivered the content
             // So just show the branch options immediately
             if skipPauseCheck {
-                // For MVP demo: Show all options regardless of previous choices
+                // Filter out globally chosen options
                 let allOptions = node.nextChunkIDs.compactMap { graph?.node(for: $0) }
-                
-                // For production, uncomment these lines to track chosen branches:
-                // let chosenIds = chosenBranches[id] ?? Set<String>()
-                // let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
-                
-                // For MVP demo: Always show all options
-                let availableOptions = allOptions
-                print("🎯 Showing \(availableOptions.count) branch options for node \(id) (skipPause)")
+                let availableOptions = allOptions.filter { !globallyChosenOptions.contains($0.id) }
+                print("🎯 Node \(id): \(availableOptions.count) available of \(allOptions.count) total options")
+                print("   Globally hidden options: \(globallyChosenOptions)")
                 
                 if availableOptions.isEmpty && !allOptions.isEmpty {
                     // All options have been explored
@@ -362,16 +363,11 @@ final class EllenViewModel: ObservableObject {
                     }
                     self.isTyping = false
 
-                    // For MVP demo: Show all options regardless of previous choices
+                    // Filter out globally chosen options
                     let allOptions = node.nextChunkIDs.compactMap { self.graph?.node(for: $0) }
-                    
-                    // For production, uncomment these lines to track chosen branches:
-                    // let chosenIds = self.chosenBranches[id] ?? Set<String>()
-                    // let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
-                    
-                    // For MVP demo: Always show all options
-                    let availableOptions = allOptions
-                    print("🎯 Showing \(availableOptions.count) branch options for node \(id)")
+                    let availableOptions = allOptions.filter { !self.globallyChosenOptions.contains($0.id) }
+                    print("🎯 Node \(id): \(availableOptions.count) available of \(allOptions.count) total options")
+                    print("   Globally hidden options: \(self.globallyChosenOptions)")
 
                     if availableOptions.isEmpty && !allOptions.isEmpty {
                         // All options have been explored
@@ -417,18 +413,12 @@ final class EllenViewModel: ObservableObject {
                         self.hasMoreContent = true
                         self.pendingNodeID = id
                     } else {
-                        // For standalone aporia-user nodes, check if already chosen
-                        // The parent would be the node that led to this one
-                        if let parentId = self.findParentNode(for: id) {
-                            let chosenIds = self.chosenBranches[parentId] ?? Set<String>()
-                            if !chosenIds.contains(id) {
-                                self.branchOptions = [node]
-                            } else {
-                                // This option was already chosen, advance to next
-                                self.advance(to: node.nextChunkIDs.first)
-                            }
-                        } else {
+                        // For standalone aporia-user nodes, check if globally chosen
+                        if !self.globallyChosenOptions.contains(id) {
                             self.branchOptions = [node]
+                        } else {
+                            // This option was already chosen globally, advance to next
+                            self.advance(to: node.nextChunkIDs.first)
                         }
                     }
                 }
@@ -558,23 +548,38 @@ final class EllenViewModel: ObservableObject {
             if paragraphs.count > 1 {
                 print("📄 Splitting Claude response into \(paragraphs.count) separate messages")
                 // Add each paragraph as a separate message with typing delays
-                Task {
+                deliveryTask = Task { [weak self] in
+                    guard let self = self else { return }
+                    defer { self.deliveryTask = nil }
+                    
                     for (index, paragraph) in paragraphs.enumerated() {
-                        // Show typing indicator between messages
-                        if index > 0 {
-                            isTyping = true
-                            let delay = calculateMessageDelay() * 0.3 // Shorter delay between paragraphs
-                            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                            isTyping = false
+                        // Show typing indicator before each message
+                        self.isTyping = true
+                        let delay = index == 0 ? 0.5 : self.calculateMessageDelay() * 0.5
+                        do {
+                            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                        } catch {
+                            self.isTyping = false
+                            return
                         }
+                        
+                        guard !Task.isCancelled else {
+                            self.isTyping = false
+                            return
+                        }
+                        
+                        self.isTyping = false
                         
                         let aiMessage = Message(
                             role: lastEllenMessage.role,
                             content: paragraph.trimmingCharacters(in: .whitespacesAndNewlines),
                             source: .aiGenerated
                         )
-                        messages.append(aiMessage)
-                        persist(aiMessage)
+                        self.messages.append(aiMessage)
+                        self.persist(aiMessage)
+                        
+                        // Small pause after showing the message
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
                     }
                 }
             } else {
@@ -782,16 +787,11 @@ final class EllenViewModel: ObservableObject {
                 // The advance function will handle showing the branch options after delivery
                 advance(to: pendingID, skipPauseCheck: true)
             case .aporiaUser:
-                // Check if this was already chosen
-                if let parentId = findParentNode(for: pendingID) {
-                    let chosenIds = chosenBranches[parentId] ?? Set<String>()
-                    if !chosenIds.contains(pendingID) {
-                        branchOptions = [node]
-                    } else {
-                        advance(to: node.nextChunkIDs.first, skipPauseCheck: true)
-                    }
-                } else {
+                // Check if this was already chosen globally
+                if !globallyChosenOptions.contains(pendingID) {
                     branchOptions = [node]
+                } else {
+                    advance(to: node.nextChunkIDs.first, skipPauseCheck: true)
                 }
             default:
                 advance(to: pendingID, skipPauseCheck: true)

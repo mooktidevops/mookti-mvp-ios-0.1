@@ -65,7 +65,14 @@ struct RootNavigationView: View {
                 .navigationDestination(for: Route.self) { route in
                     switch route {
                     case .chat:
-                        EllenChatView(onHome: { navPath = NavigationPath() })
+                        EllenChatView(
+                            onHome: { navPath = NavigationPath() },
+                            onEllen: { /* Already on Ellen chat */ },
+                            onTeams: { 
+                                navPath = NavigationPath()
+                                navPath.append(Route.teams)
+                            }
+                        )
                     case .settings: SettingsView()
                     case .history : ConversationHistoryView()
                     case .teams: TeamsView(

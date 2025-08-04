@@ -37,6 +37,8 @@ struct LoginView: View {
 
             // Sign-in options
             VStack(spacing: 16) {
+                // DEMO VERSION - Apple auth hidden, guest access only
+                /*
                 // Sign in with Apple
                 SignInWithAppleButton(.signIn, onRequest: configureRequest, onCompletion: handleResult)
                     .signInWithAppleButtonStyle(.black)
@@ -58,23 +60,37 @@ struct LoginView: View {
                         .frame(height: 1)
                 }
                 .padding(.horizontal, 40)
+                */
                 
-                // Continue as Guest button
+                // Demo notice
+                Text("DEMO PREVIEW")
+                    .font(.custom("Inter-Regular", size: 14))
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color.theme.accent)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.theme.accent, lineWidth: 2)
+                    )
+                
+                // Continue as Guest button (primary for demo)
                 Button(action: continueAsGuest) {
                     HStack {
-                        Image(systemName: "person.fill")
-                        Text("Continue as Guest")
-                            .font(.custom("Inter-Regular", size: 16))
-                            .fontWeight(.medium)
+                        Image(systemName: "arrow.right.circle.fill")
+                        Text("Tap to Start Demo")
+                            .font(.custom("Inter-Regular", size: 18))
+                            .fontWeight(.semibold)
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: 50)
+                    .frame(height: 56)
                     .background(Color.theme.accent)
                     .foregroundColor(Color.theme.background)
-                    .cornerRadius(8)
+                    .cornerRadius(12)
                 }
                 .padding(.horizontal, 40)
                 .disabled(isProcessing)
+                .shadow(color: Color.theme.accent.opacity(0.3), radius: 10, x: 0, y: 5)
             }
 
             if isProcessing { 
