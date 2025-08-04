@@ -36,6 +36,7 @@ final class EllenViewModel: ObservableObject {
     private var currentNodeID: String?
     private var history: ConversationStore?
     private var settings: SettingsService?
+    private var deliveryTask: Task<Void, Never>?
 
     /// Flag so the view knows whether to inject the RAG provider
     var isUnconfigured: Bool { aiService == nil }
@@ -199,10 +200,13 @@ final class EllenViewModel: ObservableObject {
 
     // MARK: - Graph traversal
     private func advance(to id: String?, skipPauseCheck: Bool = false) {
+        deliveryTask?.cancel()
+        isTyping = false
+
         guard let id,
-              let node = graph?.node(for: id) else { 
+              let node = graph?.node(for: id) else {
             print("⚠️ advance: Cannot advance to id=\(id ?? "nil") - node not found")
-            return 
+            return
         }
 
         print("📍 advance: Moving to node \(id), type=\(node.type)")
@@ -266,12 +270,23 @@ final class EllenViewModel: ObservableObject {
                 persist(fallbackMessage)
             }
             // Don't auto-advance - wait for user interaction or add delay
-            Task {
-                let delay = calculateMessageDelay()
-                isTyping = true
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                isTyping = false
-                advance(to: node.nextChunkIDs.first)
+            deliveryTask = Task { [weak self] in
+                guard let self = self else { return }
+                defer { self.deliveryTask = nil }
+                let delay = self.calculateMessageDelay()
+                self.isTyping = true
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                } catch {
+                    self.isTyping = false
+                    return
+                }
+                guard !Task.isCancelled else {
+                    self.isTyping = false
+                    return
+                }
+                self.isTyping = false
+                self.advance(to: node.nextChunkIDs.first)
             }
 
         case .aporiaSystem:
@@ -292,22 +307,33 @@ final class EllenViewModel: ObservableObject {
             } else {
                 // Normal flow - check if we should pause before showing options
                 // Show typing indicator and delay before showing options
-                Task {
-                    let delay = calculateMessageDelay()
-                    isTyping = true
-                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                    isTyping = false
-                    
+                deliveryTask = Task { [weak self] in
+                    guard let self = self else { return }
+                    defer { self.deliveryTask = nil }
+                    let delay = self.calculateMessageDelay()
+                    self.isTyping = true
+                    do {
+                        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    } catch {
+                        self.isTyping = false
+                        return
+                    }
+                    guard !Task.isCancelled else {
+                        self.isTyping = false
+                        return
+                    }
+                    self.isTyping = false
+
                     // Filter out already chosen options
-                    let allOptions = node.nextChunkIDs.compactMap { graph?.node(for: $0) }
-                    let chosenIds = chosenBranches[id] ?? Set<String>()
+                    let allOptions = node.nextChunkIDs.compactMap { self.graph?.node(for: $0) }
+                    let chosenIds = self.chosenBranches[id] ?? Set<String>()
                     let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
-                    
+
                     if availableOptions.isEmpty && !allOptions.isEmpty {
                         // All options have been explored
-                        handleAllOptionsExplored(at: id, with: allOptions)
+                        self.handleAllOptionsExplored(at: id, with: allOptions)
                     } else {
-                        branchOptions = availableOptions
+                        self.branchOptions = availableOptions
                     }
                 }
             }
@@ -324,30 +350,41 @@ final class EllenViewModel: ObservableObject {
                 isTyping = false
             } else {
                 // Show typing indicator and delay before showing options
-                Task {
-                    let delay = calculateMessageDelay()
-                    isTyping = true
-                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                    isTyping = false
-                    
+                deliveryTask = Task { [weak self] in
+                    guard let self = self else { return }
+                    defer { self.deliveryTask = nil }
+                    let delay = self.calculateMessageDelay()
+                    self.isTyping = true
+                    do {
+                        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    } catch {
+                        self.isTyping = false
+                        return
+                    }
+                    guard !Task.isCancelled else {
+                        self.isTyping = false
+                        return
+                    }
+                    self.isTyping = false
+
                     // Double-check scroll position after delay
-                    if shouldPauseForScroll(nextContent: "BRANCH_OPTIONS", nodeType: .aporiaUser) {
-                        isPaused = true
-                        hasMoreContent = true
-                        pendingNodeID = id
+                    if self.shouldPauseForScroll(nextContent: "BRANCH_OPTIONS", nodeType: .aporiaUser) {
+                        self.isPaused = true
+                        self.hasMoreContent = true
+                        self.pendingNodeID = id
                     } else {
                         // For standalone aporia-user nodes, check if already chosen
                         // The parent would be the node that led to this one
-                        if let parentId = findParentNode(for: id) {
-                            let chosenIds = chosenBranches[parentId] ?? Set<String>()
+                        if let parentId = self.findParentNode(for: id) {
+                            let chosenIds = self.chosenBranches[parentId] ?? Set<String>()
                             if !chosenIds.contains(id) {
-                                branchOptions = [node]
+                                self.branchOptions = [node]
                             } else {
                                 // This option was already chosen, advance to next
-                                advance(to: node.nextChunkIDs.first)
+                                self.advance(to: node.nextChunkIDs.first)
                             }
                         } else {
-                            branchOptions = [node]
+                            self.branchOptions = [node]
                         }
                     }
                 }
@@ -361,28 +398,50 @@ final class EllenViewModel: ObservableObject {
             persist(mediaMessage)
             branchOptions = []
             // Auto-advance after showing media
-            Task {
-                let delay = calculateMessageDelay()
+            deliveryTask = Task { [weak self] in
+                guard let self = self else { return }
+                defer { self.deliveryTask = nil }
+                let delay = self.calculateMessageDelay()
                 // Show typing indicator during the delay
-                isTyping = true
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                isTyping = false
-                advance(to: node.nextChunkIDs.first)
+                self.isTyping = true
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                } catch {
+                    self.isTyping = false
+                    return
+                }
+                guard !Task.isCancelled else {
+                    self.isTyping = false
+                    return
+                }
+                self.isTyping = false
+                self.advance(to: node.nextChunkIDs.first)
             }
 
         case .system:
             branchOptions = []
             // Auto-advance system messages after a delay based on previous message length
-            Task {
-                let delay = calculateMessageDelay()
+            deliveryTask = Task { [weak self] in
+                guard let self = self else { return }
+                defer { self.deliveryTask = nil }
+                let delay = self.calculateMessageDelay()
                 // Show typing indicator during the delay
-                isTyping = true
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                isTyping = false
-                
+                self.isTyping = true
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                } catch {
+                    self.isTyping = false
+                    return
+                }
+                guard !Task.isCancelled else {
+                    self.isTyping = false
+                    return
+                }
+                self.isTyping = false
+
                 // Check again if we need to advance to next content
                 if let nextId = node.nextChunkIDs.first {
-                    advance(to: nextId)
+                    self.advance(to: nextId)
                 }
             }
 
@@ -394,15 +453,20 @@ final class EllenViewModel: ObservableObject {
 
     func send(_ text: String) async {
         print("💬 EllenViewModel: Received user input: '\(String(text.prefix(50)))...'")
-        
+
         // Check for admin commands
         if text.hasPrefix("//") {
             print("🔧 EllenViewModel: Processing admin command")
             await handleAdminCommand(text)
             return
         }
-        
-        guard let aiService else { 
+
+        // Cancel any pending content delivery tasks
+        deliveryTask?.cancel()
+        deliveryTask = nil
+        isTyping = false
+
+        guard let aiService else {
             print("⚠️ EllenViewModel: aiService is nil, cannot send message")
             let errorMessage = Message(role: .system, content: "⚠️ AI service not available. Please restart the app.", source: .csv)
             messages.append(errorMessage)
@@ -483,16 +547,22 @@ final class EllenViewModel: ObservableObject {
             // If return_to_path was used, continue to next node after a delay
             if shouldContinuePath {
                 print("📍 EllenViewModel: Continuing to next node after return_to_path")
-                Task {
-                    // Wait for user to read the transition message
-                    try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-                    
+                deliveryTask = Task { [weak self] in
+                    guard let self = self else { return }
+                    defer { self.deliveryTask = nil }
+                    do {
+                        try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                    } catch {
+                        return
+                    }
+                    guard !Task.isCancelled else { return }
+
                     // Continue to next node in the learning path
-                    if let currentNode = currentNodeID,
-                       let node = graph?.node(for: currentNode),
+                    if let currentNode = self.currentNodeID,
+                       let node = self.graph?.node(for: currentNode),
                        let nextNodeId = node.nextChunkIDs.first {
                         print("➡️ EllenViewModel: Advancing from \(currentNode) to \(nextNodeId)")
-                        advance(to: nextNodeId)
+                        self.advance(to: nextNodeId)
                     } else {
                         print("⚠️ EllenViewModel: Could not find next node to advance to")
                     }
