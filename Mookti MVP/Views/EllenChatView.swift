@@ -90,19 +90,10 @@ struct EllenChatView: View {
                                 .id("typing-indicator")
                         }
                         
-                        // Add extra space when paused to enable scrolling
-                        if vm.hasMoreContent {
-                            VStack {
-                                Text("Scroll down to continue...")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .padding(.top, 20)
-                                
-                                Color.clear
-                                    .frame(height: 300) // Increased height for more scroll room
-                            }
-                            .id("scroll-spacer")
-                        }
+                        // Small spacer to prevent layout jump when paused
+                        // Keeps consistent spacing whether paused or not
+                        Color.clear
+                            .frame(height: vm.hasMoreContent ? 20 : 0)
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
@@ -113,16 +104,6 @@ struct EllenChatView: View {
                     })
                 }
                 .coordinateSpace(name: "scroll")
-                .gesture(
-                    DragGesture()
-                        .onEnded { value in
-                            // Detect downward swipe when paused
-                            if vm.hasMoreContent && value.translation.height < -30 {
-                                print("👆 Swipe up detected while paused")
-                                vm.userScrolledDown()
-                            }
-                        }
-                )
                 .onPreferenceChange(ViewHeightKey.self) { value in
                     scrollViewHeight = value
                 }
@@ -131,25 +112,8 @@ struct EllenChatView: View {
                     updateScrollState()
                 }
                 .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                    let oldOffset = scrollOffset
                     scrollOffset = value
-                    
-                    // Debug all scroll changes
-                    if oldOffset != value {
-                        print("📊 Scroll changed: old=\(oldOffset), new=\(value), hasMore=\(vm.hasMoreContent)")
-                    }
-                    
                     updateScrollState()
-                    
-                    // Detect scroll direction and notify view model
-                    // When paused with more content, any downward scroll should continue
-                    if vm.hasMoreContent && oldOffset != value {
-                        // Check if user scrolled down (offset becomes more negative)
-                        if value < oldOffset - 5 { // 5pt threshold to avoid tiny movements
-                            print("🔽 Scroll down detected while paused: oldOffset=\(oldOffset), newOffset=\(value)")
-                            vm.userScrolledDown()
-                        }
-                    }
                 }
                 .background(
                     GeometryReader { geo in
