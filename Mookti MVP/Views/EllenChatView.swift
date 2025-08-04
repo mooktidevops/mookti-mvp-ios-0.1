@@ -113,6 +113,16 @@ struct EllenChatView: View {
                     })
                 }
                 .coordinateSpace(name: "scroll")
+                .gesture(
+                    DragGesture()
+                        .onEnded { value in
+                            // Detect downward swipe when paused
+                            if vm.hasMoreContent && value.translation.height < -30 {
+                                print("👆 Swipe up detected while paused")
+                                vm.userScrolledDown()
+                            }
+                        }
+                )
                 .onPreferenceChange(ViewHeightKey.self) { value in
                     scrollViewHeight = value
                 }
@@ -123,6 +133,12 @@ struct EllenChatView: View {
                 .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
                     let oldOffset = scrollOffset
                     scrollOffset = value
+                    
+                    // Debug all scroll changes
+                    if oldOffset != value {
+                        print("📊 Scroll changed: old=\(oldOffset), new=\(value), hasMore=\(vm.hasMoreContent)")
+                    }
+                    
                     updateScrollState()
                     
                     // Detect scroll direction and notify view model
