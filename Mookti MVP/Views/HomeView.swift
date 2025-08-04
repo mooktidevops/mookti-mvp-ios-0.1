@@ -146,12 +146,12 @@ struct HomeView: View {
                         
                         VStack(spacing: 0) {
                             ForEach([
-                                "Conversations on Human Difference",
+                                "What is culture?",
                                 "Understanding Cultural Intelligence",
-                                "Bias, Belonging, and Cultural Awareness",
-                                "Cultural Code-Switching 101",
-                                "Walking in Their Shoes: Empathy and CQ",
-                                "Leadership Across Borders"
+                                "Emotional Intelligence in the Workplace",
+                                "Prepping for Client Presentation",
+                                "Defusing conflicts with Steve",
+                                "Presentation decks"
                             ], id: \.self) { title in
                                 Button(action: onHistory) {
                                     HStack {

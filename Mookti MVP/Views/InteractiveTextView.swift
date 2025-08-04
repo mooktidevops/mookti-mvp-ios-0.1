@@ -98,9 +98,14 @@ class WrappingTextView: UITextView {
         super.layoutSubviews()
         // Ensure the text container matches the current view width so
         // that `sizeThatFits` calculates the correct wrapped height.
-        if textContainer.size.width != bounds.width {
-            textContainer.size = CGSize(width: bounds.width,
+        let width = bounds.width
+        if textContainer.size.width != width {
+            textContainer.size = CGSize(width: width,
                                         height: .greatestFiniteMagnitude)
+            // Changing the container width can affect wrapping, so
+            // invalidate the intrinsic content size to trigger a
+            // recomputation of the view's height.
+            invalidateIntrinsicContentSize()
         }
     }
 
@@ -127,6 +132,7 @@ struct TappableText: UIViewRepresentable {
         textView.backgroundColor = .clear
         textView.textContainerInset = .zero
         textView.textContainer.lineFragmentPadding = 0
+        textView.textContainer.widthTracksTextView = true
         textView.textContainer.lineBreakMode = .byWordWrapping
         textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         textView.setContentCompressionResistancePriority(.required, for: .vertical)
