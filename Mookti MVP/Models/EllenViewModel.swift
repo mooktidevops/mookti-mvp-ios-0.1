@@ -696,10 +696,10 @@ final class EllenViewModel: ObservableObject {
         
         // Resume if user has scrolled down (not necessarily to bottom) and we have pending content
         // This prevents indefinite pause - any downward scroll triggers continuation
-        if !wasAtBottom && isUserAtBottom && isPaused, let pendingID = pendingNodeID {
+        if !wasAtBottom && isUserAtBottom && isPaused, let pendingID = pendingNodeID, !isThinking {
             // User scrolled down, resume delivery
             resumePendingContent(pendingID)
-        } else if isPaused && pendingNodeID != nil {
+        } else if isPaused && pendingNodeID != nil, !isThinking {
             // Also resume if user is within reasonable distance of bottom
             // This handles cases where user might not reach exact bottom
             if isAtBottom || isNearBottom(threshold: 100) {
@@ -709,11 +709,11 @@ final class EllenViewModel: ObservableObject {
             }
         }
     }
-    
+
     /// Called when user scrolls down - used to trigger content delivery
     func userScrolledDown() {
         // If we have paused content and user is scrolling down, resume delivery
-        if isPaused, let pendingID = pendingNodeID {
+        if isPaused, let pendingID = pendingNodeID, !isThinking {
             resumePendingContent(pendingID)
         }
     }
