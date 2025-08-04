@@ -84,15 +84,33 @@ enum TappableTextComponent {
     case interactive(trigger: String, annotation: String)
 }
 
-/// Custom UITextView that properly sizes itself for wrapping text
+/// Custom `UITextView` that dynamically wraps text without truncation
+///
+/// The previous implementation relied on accessing the view's
+/// `layoutManager` to calculate the height. In iOS 17 this forces
+/// the text view into TextKit 1 compatibility mode which can cause
+/// long messages to render only partially. By using `sizeThatFits`
+/// and updating the `textContainer` width during layout we allow the
+/// system to use TextKit 2 and properly compute the intrinsic height
+/// for large content blocks.
 class WrappingTextView: UITextView {
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // Ensure the text container matches the current view width so
+        // that `sizeThatFits` calculates the correct wrapped height.
+        if textContainer.size.width != bounds.width {
+            textContainer.size = CGSize(width: bounds.width,
+                                        height: .greatestFiniteMagnitude)
+        }
+    }
+
     override var intrinsicContentSize: CGSize {
-        // textContainer and layoutManager are non-optional in modern iOS
-        let textContainer = self.textContainer
-        let layoutManager = self.layoutManager
-        
-        layoutManager.ensureLayout(for: textContainer)
-        let size = layoutManager.usedRect(for: textContainer).size
+        // Ask the system for the size that fits the current width without
+        // constraining the height. This respects dynamic type and avoids
+        // TextKit compatibility warnings.
+        let fittingSize = CGSize(width: bounds.width,
+                                 height: .greatestFiniteMagnitude)
+        let size = sizeThatFits(fittingSize)
         return CGSize(width: UIView.noIntrinsicMetric, height: size.height)
     }
 }
