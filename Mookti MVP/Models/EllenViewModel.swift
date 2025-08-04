@@ -198,7 +198,7 @@ final class EllenViewModel: ObservableObject {
     }
 
     // MARK: - Graph traversal
-    private func advance(to id: String?) {
+    private func advance(to id: String?, skipPauseCheck: Bool = false) {
         guard let id,
               let node = graph?.node(for: id) else { 
             print("⚠️ advance: Cannot advance to id=\(id ?? "nil") - node not found")
@@ -212,24 +212,26 @@ final class EllenViewModel: ObservableObject {
         aiService?.currentNodeId = id
         aiService?.nodesCompleted += 1
         
-        // Check if we should pause before delivering this message
-        // For carousel and media types, use estimated heights
-        let contentToCheck: String
-        switch node.type {
-        case .cardCarousel:
-            contentToCheck = "CAROUSEL_PLACEHOLDER" // Will be handled specially in height estimation
-        case .media:
-            contentToCheck = "MEDIA_PLACEHOLDER" // Will be handled specially in height estimation
-        default:
-            contentToCheck = node.content
-        }
-        
-        if shouldPauseForScroll(nextContent: contentToCheck, nodeType: node.type) {
-            isPaused = true
-            hasMoreContent = true
-            pendingNodeID = id
-            isTyping = false // Hide typing indicator while paused
-            return
+        // Check if we should pause before delivering this message (unless resuming from pause)
+        if !skipPauseCheck {
+            // For carousel and media types, use estimated heights
+            let contentToCheck: String
+            switch node.type {
+            case .cardCarousel:
+                contentToCheck = "CAROUSEL_PLACEHOLDER" // Will be handled specially in height estimation
+            case .media:
+                contentToCheck = "MEDIA_PLACEHOLDER" // Will be handled specially in height estimation
+            default:
+                contentToCheck = node.content
+            }
+            
+            if shouldPauseForScroll(nextContent: contentToCheck, nodeType: node.type) {
+                isPaused = true
+                hasMoreContent = true
+                pendingNodeID = id
+                isTyping = false // Hide typing indicator while paused
+                return
+            }
         }
 
         // Handle different node types
@@ -682,14 +684,14 @@ final class EllenViewModel: ObservableObject {
                     if !chosenIds.contains(pendingID) {
                         branchOptions = [node]
                     } else {
-                        advance(to: node.nextChunkIDs.first)
+                        advance(to: node.nextChunkIDs.first, skipPauseCheck: true)
                     }
                 } else {
                     branchOptions = [node]
                 }
             default:
-                print("📤 Calling advance for pending node \(pendingID)")
-                advance(to: pendingID)
+                print("📤 Calling advance for pending node \(pendingID) with skipPauseCheck=true")
+                advance(to: pendingID, skipPauseCheck: true)
             }
         }
     }
