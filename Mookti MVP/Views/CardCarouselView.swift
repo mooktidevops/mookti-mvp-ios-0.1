@@ -70,7 +70,8 @@ struct CardCarouselView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         .background(
                             GeometryReader { geometry in
-                                Color.clear.preference(key: HeightPreferenceKey.self, value: geometry.size.height)
+                                Color.clear.preference(key: HeightPreferenceKey.self,
+                                                       value: index == i ? geometry.size.height : 0)
                             }
                         )
                         .background(.ultraThinMaterial)
@@ -81,7 +82,7 @@ struct CardCarouselView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .tabViewStyle(.page(indexDisplayMode: .always))
-                .frame(minHeight: 240, maxHeight: 400)  // Dynamic height with min/max constraints
+                .frame(height: cardHeight)
                 .onPreferenceChange(HeightPreferenceKey.self) { height in
                     if height > 0 {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -125,7 +126,7 @@ struct CardCarouselView: View {
                     }
                 }
                 .allowsHitTesting(true)
-                .frame(minHeight: 240, maxHeight: 400)
+                .frame(height: cardHeight)
             }
         }
         .padding(.vertical, 8)
