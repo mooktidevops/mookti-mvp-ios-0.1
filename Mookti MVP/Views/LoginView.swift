@@ -27,6 +27,9 @@ struct LoginView: View {
                 Text("education for the future")
                     .font(.custom("Lora-Regular", size: 16))
                     .foregroundColor(Color.theme.textPrimary)
+                Text("yc preview")
+                    .font(.custom("Lora-Regular", size: 16))
+                    .foregroundColor(Color.theme.textPrimary)
             }
             .padding(.top, 40)
 

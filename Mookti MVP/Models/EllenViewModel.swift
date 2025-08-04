@@ -51,6 +51,10 @@ final class EllenViewModel: ObservableObject {
             return 
         }
         
+        // Reset chosen branches for each new session (for demo/preview)
+        chosenBranches.removeAll()
+        print("🔄 EllenViewModel: Reset chosen branches for new session")
+        
         print("📊 EllenViewModel: Setting up conversation history")
         self.history = history
         history.startNew(title: "Ellen Chat")
@@ -151,12 +155,15 @@ final class EllenViewModel: ObservableObject {
 
     // MARK: - Branch choice
     func chooseBranch(_ node: LearningNode) {
-        // Track this choice if we have a current node (the aporia-system that offered the choices)
+        // For MVP demo: Disable branch tracking to always show all options
+        // For production, uncomment these lines to track chosen branches:
+        /*
         if let currentNode = currentNodeID {
             var choices = chosenBranches[currentNode] ?? Set<String>()
             choices.insert(node.id)
             chosenBranches[currentNode] = choices
         }
+        */
         
         // Add learner choice bubble
         let userMessage = Message(role: .user, content: node.content, source: .csv)
@@ -209,7 +216,28 @@ final class EllenViewModel: ObservableObject {
             return
         }
 
-        print("📍 advance: Moving to node \(id), type=\(node.type)")
+        // Special handling for node 15 and similar scenario nodes that should show branch options
+        // These are marked as "system" in CSV but have multiple aporia-user children
+        var effectiveType = node.type
+        if node.type == .system && (id == "15" || id == "22" || id == "29") {
+            // Check if this node has multiple aporia-user children
+            let childNodes = node.nextChunkIDs.compactMap { graph?.node(for: $0) }
+            let aporiaUserChildren = childNodes.filter { $0.type == .aporiaUser }
+            if aporiaUserChildren.count > 1 {
+                effectiveType = .aporiaSystem
+                print("🔄 Treating node \(id) as aporia-system (has \(aporiaUserChildren.count) user options)")
+                print("   Child nodes: \(childNodes.map { "\($0.id): \($0.type)" }.joined(separator: ", "))")
+            }
+        }
+        
+        // Debug: Print actual content for node 15
+        if id == "15" {
+            print("📜 Node 15 content preview: '\(String(node.content.prefix(100)))...'")
+            print("📜 Node 15 full length: \(node.content.count) characters")
+            print("📜 Node 15 next IDs: \(node.nextChunkIDs.joined(separator: ", "))")
+        }
+        
+        print("📍 advance: Moving to node \(id), type=\(effectiveType) (original: \(node.type))")
         currentNodeID = id
         
         // Update AI service with current position
@@ -240,13 +268,17 @@ final class EllenViewModel: ObservableObject {
 
         // Handle different node types
         // Don't show aporia-user, card-carousel, or media nodes as system messages
-        if node.type != .aporiaUser && node.type != .cardCarousel && node.type != .media {
-            let systemMessage = Message(role: .system, content: node.content, source: .csv)
+        if effectiveType != .aporiaUser && effectiveType != .cardCarousel && effectiveType != .media {
+            // For node 15 and similar aporia-system nodes, ensure full content is displayed
+            // These nodes have important scenario text that shouldn't be truncated
+            let fullContent = node.content
+            let systemMessage = Message(role: .system, content: fullContent, source: .csv)
             messages.append(systemMessage)
             persist(systemMessage)
+            print("📝 Delivered system message for node \(id): \(fullContent.count) chars")
         }
 
-        switch node.type {
+        switch effectiveType {
         case .cardCarousel:
             // Add carousel as a message in the chat
             if let carouselPayload = node.asCarouselPayload() {
@@ -293,10 +325,16 @@ final class EllenViewModel: ObservableObject {
             // When skipPauseCheck is true (resuming from pause), we've already delivered the content
             // So just show the branch options immediately
             if skipPauseCheck {
-                // Filter out already chosen options
+                // For MVP demo: Show all options regardless of previous choices
                 let allOptions = node.nextChunkIDs.compactMap { graph?.node(for: $0) }
-                let chosenIds = chosenBranches[id] ?? Set<String>()
-                let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
+                
+                // For production, uncomment these lines to track chosen branches:
+                // let chosenIds = chosenBranches[id] ?? Set<String>()
+                // let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
+                
+                // For MVP demo: Always show all options
+                let availableOptions = allOptions
+                print("🎯 Showing \(availableOptions.count) branch options for node \(id) (skipPause)")
                 
                 if availableOptions.isEmpty && !allOptions.isEmpty {
                     // All options have been explored
@@ -324,10 +362,16 @@ final class EllenViewModel: ObservableObject {
                     }
                     self.isTyping = false
 
-                    // Filter out already chosen options
+                    // For MVP demo: Show all options regardless of previous choices
                     let allOptions = node.nextChunkIDs.compactMap { self.graph?.node(for: $0) }
-                    let chosenIds = self.chosenBranches[id] ?? Set<String>()
-                    let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
+                    
+                    // For production, uncomment these lines to track chosen branches:
+                    // let chosenIds = self.chosenBranches[id] ?? Set<String>()
+                    // let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
+                    
+                    // For MVP demo: Always show all options
+                    let availableOptions = allOptions
+                    print("🎯 Showing \(availableOptions.count) branch options for node \(id)")
 
                     if availableOptions.isEmpty && !allOptions.isEmpty {
                         // All options have been explored
