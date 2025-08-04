@@ -22,7 +22,7 @@ struct RootNavigationView: View {
 
     // Routing enum
     private enum Route: Hashable {
-        case chat, settings, history
+        case chat, settings, history, teams
     }
 
     var body: some View {
@@ -58,12 +58,20 @@ struct RootNavigationView: View {
     // MARK: - Signed‑in navigation stack
     private var signedInStack: some View {
         NavigationStack(path: $navPath) {
-            HomeView(onContinue: { navPath.append(Route.chat) })
+            HomeView(onContinue: { navPath.append(Route.chat) },
+                     onEllen: { navPath.append(Route.chat) },
+                     onTeams: { navPath.append(Route.teams) },
+                     onHistory: { navPath.append(Route.history) })
                 .navigationDestination(for: Route.self) { route in
                     switch route {
-                    case .chat: EllenChatView()
+                    case .chat:
+                        EllenChatView(onHome: { navPath = NavigationPath() })
                     case .settings: SettingsView()
                     case .history : ConversationHistoryView()
+                    case .teams: TeamsView(
+                        onHome: { navPath = NavigationPath() },
+                        onEllen: { navPath.append(Route.chat) }
+                    )
                     }
                 }
                 .toolbar {

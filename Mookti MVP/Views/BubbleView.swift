@@ -66,8 +66,8 @@ struct BubbleView: View {
                                 .textSelection(.enabled)
                         }
                         .padding(12)
-                        .background(isUser ? Color.accentColor.opacity(0.15)
-                                           : Color.secondary.opacity(0.1))
+                        .background(isUser ? Color.theme.blue.opacity(0.9)
+                                           : Color.theme.softPink)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                         .foregroundColor(isUser ? .primary : .primary)
                         .frame(maxWidth: 260, alignment: isUser ? .trailing : .leading)
@@ -76,8 +76,8 @@ struct BubbleView: View {
                         if let mediaPayload = createMediaPayload() {
                             MediaThumbnailView(payload: mediaPayload)
                                 .padding(12)
-                                .background(isUser ? Color.accentColor.opacity(0.15)
-                                                   : Color.secondary.opacity(0.1))
+                                .background(isUser ? Color.theme.blue.opacity(0.9)
+                                                   : Color.theme.softPink)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
                                 .frame(maxWidth: 280, alignment: isUser ? .trailing : .leading)
                         } else {
@@ -97,18 +97,18 @@ struct BubbleView: View {
                         if containsInteractiveAnnotations(message.content) {
                             InteractiveTextView(content: message.content)
                                 .padding(12)
-                                .background(isUser ? Color.accentColor.opacity(0.15)
-                                                   : Color.secondary.opacity(0.1))
+                                .background(isUser ? Color.theme.blue.opacity(0.9)
+                                                   : Color.theme.softPink)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .foregroundColor(isUser ? .primary : .primary)
+                                .foregroundColor(isUser ? .white : Color.theme.textPrimary)
                                 .frame(maxWidth: 260, alignment: isUser ? .trailing : .leading)
                         } else {
                             Text(message.content)
                                 .padding(12)
-                                .background(isUser ? Color.accentColor.opacity(0.15)
-                                                   : Color.secondary.opacity(0.1))
+                                .background(isUser ? Color.theme.blue.opacity(0.9)
+                                                   : Color.theme.softPink)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .foregroundColor(isUser ? .primary : .primary)
+                                .foregroundColor(isUser ? .white : Color.theme.textPrimary)
                                 .frame(maxWidth: 260, alignment: isUser ? .trailing : .leading)
                         }
                     }

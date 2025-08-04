@@ -19,14 +19,16 @@ struct LoginView: View {
         VStack(spacing: 32) {
 
             // Branding
-            VStack(alignment: .leading, spacing: 4) {
-                Text("mookti")
-                    .font(.largeTitle).bold()
+            VStack(spacing: 12) {
+                Image("Logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 120)
                 Text("education for the future")
-                    .font(.headline).foregroundStyle(.secondary)
+                    .font(.custom("Lora-Regular", size: 16))
+                    .foregroundColor(Color.theme.textPrimary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal)
+            .padding(.top, 40)
 
             Spacer()
 
@@ -59,12 +61,13 @@ struct LoginView: View {
                     HStack {
                         Image(systemName: "person.fill")
                         Text("Continue as Guest")
+                            .font(.custom("Inter-Regular", size: 16))
                             .fontWeight(.medium)
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(Color.secondary.opacity(0.2))
-                    .foregroundColor(.primary)
+                    .background(Color.theme.accent)
+                    .foregroundColor(Color.theme.background)
                     .cornerRadius(8)
                 }
                 .padding(.horizontal, 40)
@@ -78,6 +81,7 @@ struct LoginView: View {
 
             Spacer()
         }
+        .background(Color.theme.background)
         .alert("Sign‑in failed", isPresented: .constant(signInError != nil)) {
             Button("OK", role: .cancel) { signInError = nil }
         } message: {

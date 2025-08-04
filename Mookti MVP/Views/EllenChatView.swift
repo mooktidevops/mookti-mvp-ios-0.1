@@ -58,6 +58,8 @@ struct EllenChatView: View {
     @State private var isAtBottom: Bool = true
     @State private var isAtTop: Bool = true
 
+    var onHome: () -> Void = {}
+
     var body: some View {
         VStack(spacing: 0) {
 
@@ -219,7 +221,9 @@ struct EllenChatView: View {
                 .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || vm.isThinking)
             }
             .padding()
+            BottomBar(onEllen: {}, onHome: onHome, onTeams: {})
         }
+        .background(Color.theme.background)
         .navigationTitle(auth.isAdminMode ? "\(vm.moduleTitle) (Admin)" : vm.moduleTitle)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(!isAtTop)
