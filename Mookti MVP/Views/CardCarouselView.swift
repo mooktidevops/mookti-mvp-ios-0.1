@@ -57,6 +57,7 @@ struct CardCarouselView: View {
                     .tag(i)
                 }
             }
+            .frame(maxWidth: .infinity)
             .tabViewStyle(.page(indexDisplayMode: .always))
             .frame(height: 160)            // Reduced height to match card content
         }

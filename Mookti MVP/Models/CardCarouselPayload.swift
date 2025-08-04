@@ -30,39 +30,60 @@ struct CardCarouselPayload: Codable, Hashable, Equatable {
 }
 
 extension LearningNode {
-    /// Attempt to decode `content` as CardCarouselPayload.
-    /// Now expects proper JSON format from the CSV.
+    /// Attempt to decode `content` as `CardCarouselPayload`.
+    /// The CSV stores carousel data in a loose JavaScript-style object notation
+    /// without quotes around keys or string values. This parser walks the string
+    /// and extracts the pieces we care about without needing valid JSON.
     func asCarouselPayload() -> CardCarouselPayload? {
         guard type == .cardCarousel else { return nil }
 
-        do {
-            let decoder = JSONDecoder()
-            let payload = try decoder.decode(CardCarouselPayload.self,
-                                           from: Data(content.utf8))
-            print("✅ Successfully parsed carousel with \(payload.cards.count) cards")
-            return payload
-        } catch {
-            print("❌ Failed to decode CardCarouselPayload: \(error)")
-            print("Content: \(content)")
-            
-            // Try to provide more specific error information
-            if let decodingError = error as? DecodingError {
-                switch decodingError {
-                case .dataCorrupted(let context):
-                    print("Data corrupted at: \(context.codingPath)")
-                    print("Debug description: \(context.debugDescription)")
-                case .keyNotFound(let key, let context):
-                    print("Key '\(key)' not found at: \(context.codingPath)")
-                case .typeMismatch(let type, let context):
-                    print("Type mismatch for type \(type) at: \(context.codingPath)")
-                case .valueNotFound(let type, let context):
-                    print("Value not found for type \(type) at: \(context.codingPath)")
-                @unknown default:
-                    print("Unknown decoding error")
-                }
-            }
-            
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("{"), trimmed.hasSuffix("}") else {
+            print("⚠️ Carousel content not wrapped in braces: \(content)")
             return nil
         }
+
+        var heading: String?
+        var cards: [CardCarouselPayload.Card] = []
+
+        let inner = String(trimmed.dropFirst().dropLast())
+        let scanner = Scanner(string: inner)
+        scanner.charactersToBeSkipped = .whitespacesAndNewlines
+
+        while !scanner.isAtEnd {
+            if scanner.scanString("heading:") != nil {
+                let value = scanner.scanUpToString(",")
+                heading = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+                _ = scanner.scanString(",")
+            } else if scanner.scanString("cards:") != nil {
+                _ = scanner.scanString("[")
+                while scanner.scanString("]") == nil {
+                    _ = scanner.scanString("{")
+                    _ = scanner.scanString("title:")
+                    let titleValue = scanner.scanUpToString(", content:") ?? ""
+                    _ = scanner.scanString(", content:")
+                    let contentValue = scanner.scanUpToString("}") ?? ""
+                    _ = scanner.scanString("}")
+                    cards.append(
+                        .init(
+                            title: titleValue.trimmingCharacters(in: .whitespacesAndNewlines),
+                            content: contentValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                        )
+                    )
+                    _ = scanner.scanString(",")
+                }
+            } else {
+                scanner.currentIndex = scanner.string.index(after: scanner.currentIndex)
+            }
+        }
+
+        if cards.isEmpty {
+            print("⚠️ Failed to parse carousel content for node \(id), showing raw content")
+        } else {
+            print("✅ Parsed carousel with \(cards.count) cards for node \(id)")
+        }
+
+        return CardCarouselPayload(heading: heading, cards: cards)
     }
 }
+
