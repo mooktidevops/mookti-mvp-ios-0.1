@@ -31,77 +31,19 @@ struct CardCarouselPayload: Codable, Hashable, Equatable {
 
 extension LearningNode {
     /// Attempt to decode `content` as CardCarouselPayload.
-    /// Handles JavaScript-style object notation from CSV by converting to proper JSON.
+    /// Now expects proper JSON format from the CSV.
     func asCarouselPayload() -> CardCarouselPayload? {
         guard type == .cardCarousel else { return nil }
-
-        // The content comes in JavaScript object notation like:
-        // {heading: 'text', cards: [{title: 'text', content: 'text with apostrophes'}]}
-        
-        var fixedJSON = content
-        
-        // Step 1: Fix object keys - add quotes around them
-        fixedJSON = fixedJSON
-            .replacingOccurrences(of: "heading:", with: "\"heading\":")
-            .replacingOccurrences(of: "cards:", with: "\"cards\":")
-            .replacingOccurrences(of: "title:", with: "\"title\":")
-            .replacingOccurrences(of: "content:", with: "\"content\":")
-        
-        // Step 2: Replace single-quoted strings with double-quoted strings
-        // This is complex because we need to handle apostrophes inside the strings
-        // We'll use a more manual approach
-        
-        var result = ""
-        var inString = false
-        var stringDelimiter: Character? = nil
-        var i = fixedJSON.startIndex
-        
-        while i < fixedJSON.endIndex {
-            let char = fixedJSON[i]
-            
-            if !inString {
-                if char == "'" || char == "\"" {
-                    inString = true
-                    stringDelimiter = char
-                    result.append("\"") // Always use double quotes in output
-                } else {
-                    result.append(char)
-                }
-            } else {
-                // We're inside a string
-                if char == stringDelimiter && (i == fixedJSON.startIndex || fixedJSON[fixedJSON.index(before: i)] != "\\") {
-                    // End of string
-                    inString = false
-                    stringDelimiter = nil
-                    result.append("\"") // Always use double quotes in output
-                } else if char == "\"" {
-                    // Escape double quotes inside strings
-                    result.append("\\\"")
-                } else if char == "\\" && i < fixedJSON.index(before: fixedJSON.endIndex) && fixedJSON[fixedJSON.index(after: i)] == "'" {
-                    // Skip escaped single quotes
-                    result.append("'")
-                    i = fixedJSON.index(after: i)
-                } else {
-                    // Keep everything else as-is (including apostrophes)
-                    result.append(char)
-                }
-            }
-            
-            i = fixedJSON.index(after: i)
-        }
-        
-        fixedJSON = result
 
         do {
             let decoder = JSONDecoder()
             let payload = try decoder.decode(CardCarouselPayload.self,
-                                           from: Data(fixedJSON.utf8))
+                                           from: Data(content.utf8))
             print("✅ Successfully parsed carousel with \(payload.cards.count) cards")
             return payload
         } catch {
             print("❌ Failed to decode CardCarouselPayload: \(error)")
-            print("Original content: \(content)")
-            print("Fixed JSON: \(fixedJSON)")
+            print("Content: \(content)")
             
             // Try to provide more specific error information
             if let decodingError = error as? DecodingError {
