@@ -103,6 +103,22 @@ struct EllenChatView: View {
                             .preference(key: ScrollOffsetPreferenceKey.self, value: contentGeometry.frame(in: .named("scroll")).minY)
                     })
                 }
+                // Allow a downward pull gesture at the bottom of the chat
+                // to resume any paused content delivery without needing
+                // to tap the Continue button.
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 20)
+                        .onEnded { value in
+                            // Negative translation.height means the user dragged
+                            // upward (trying to scroll further down). Trigger
+                            // continuation if we're paused at the bottom.
+                            if value.translation.height < -20,
+                               isAtBottom,
+                               vm.hasMoreContent {
+                                vm.userScrolledDown()
+                            }
+                        }
+                )
                 .coordinateSpace(name: "scroll")
                 .onPreferenceChange(ViewHeightKey.self) { value in
                     scrollViewHeight = value
