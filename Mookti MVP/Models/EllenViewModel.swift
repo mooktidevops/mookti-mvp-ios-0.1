@@ -275,13 +275,22 @@ final class EllenViewModel: ObservableObject {
             }
 
         case .aporiaSystem:
-            // Check first if we should pause before showing typing indicator
-            if shouldPauseForScroll(nextContent: "BRANCH_OPTIONS", nodeType: .aporiaSystem) {
-                isPaused = true
-                hasMoreContent = true
-                pendingNodeID = id
-                isTyping = false
+            // When skipPauseCheck is true (resuming from pause), we've already delivered the content
+            // So just show the branch options immediately
+            if skipPauseCheck {
+                // Filter out already chosen options
+                let allOptions = node.nextChunkIDs.compactMap { graph?.node(for: $0) }
+                let chosenIds = chosenBranches[id] ?? Set<String>()
+                let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
+                
+                if availableOptions.isEmpty && !allOptions.isEmpty {
+                    // All options have been explored
+                    handleAllOptionsExplored(at: id, with: allOptions)
+                } else {
+                    branchOptions = availableOptions
+                }
             } else {
+                // Normal flow - check if we should pause before showing options
                 // Show typing indicator and delay before showing options
                 Task {
                     let delay = calculateMessageDelay()
@@ -289,23 +298,16 @@ final class EllenViewModel: ObservableObject {
                     try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                     isTyping = false
                     
-                    // Double-check scroll position after delay
-                    if shouldPauseForScroll(nextContent: "BRANCH_OPTIONS", nodeType: .aporiaSystem) {
-                        isPaused = true
-                        hasMoreContent = true
-                        pendingNodeID = id
+                    // Filter out already chosen options
+                    let allOptions = node.nextChunkIDs.compactMap { graph?.node(for: $0) }
+                    let chosenIds = chosenBranches[id] ?? Set<String>()
+                    let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
+                    
+                    if availableOptions.isEmpty && !allOptions.isEmpty {
+                        // All options have been explored
+                        handleAllOptionsExplored(at: id, with: allOptions)
                     } else {
-                        // Filter out already chosen options
-                        let allOptions = node.nextChunkIDs.compactMap { graph?.node(for: $0) }
-                        let chosenIds = chosenBranches[id] ?? Set<String>()
-                        let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
-                        
-                        if availableOptions.isEmpty && !allOptions.isEmpty {
-                            // All options have been explored
-                            handleAllOptionsExplored(at: id, with: allOptions)
-                        } else {
-                            branchOptions = availableOptions
-                        }
+                        branchOptions = availableOptions
                     }
                 }
             }
