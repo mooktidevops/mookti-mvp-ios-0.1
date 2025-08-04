@@ -7,6 +7,47 @@
 
 import SwiftUI
 
+// Simple flow layout to wrap option buttons across lines
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        let maxWidth = proposal.width ?? .infinity
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if width + size.width > maxWidth {
+                width = 0
+                height += rowHeight + spacing
+                rowHeight = 0
+            }
+            rowHeight = max(rowHeight, size.height)
+            width += size.width + spacing
+        }
+        height += rowHeight
+        return CGSize(width: maxWidth, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x: CGFloat = bounds.minX
+        var y: CGFloat = bounds.minY
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(width: size.width, height: size.height))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+}
+
 /// Renders the “aporia‑user” options as tappable buttons.
 ///
 /// The caller passes the nodes representing each option
@@ -17,22 +58,18 @@ struct BranchButtonsView: View {
     var onSelect: (LearningNode) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        FlowLayout(spacing: 8) {
             ForEach(options) { node in
                 Button {
                     onSelect(node)
                 } label: {
                     Text(node.content)
                         .font(.subheadline)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.accentColor.opacity(0.1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.accentColor.opacity(0.15))
+                        .foregroundColor(.accentColor)
+                        .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }
