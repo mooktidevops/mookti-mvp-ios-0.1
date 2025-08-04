@@ -662,17 +662,9 @@ final class EllenViewModel: ObservableObject {
         if let node = graph?.node(for: pendingID) {
             switch node.type {
             case .aporiaSystem:
-                // Filter out already chosen options
-                let allOptions = node.nextChunkIDs.compactMap { graph?.node(for: $0) }
-                let chosenIds = chosenBranches[pendingID] ?? Set<String>()
-                let availableOptions = allOptions.filter { !chosenIds.contains($0.id) }
-                
-                if availableOptions.isEmpty && !allOptions.isEmpty {
-                    // All options explored, advance
-                    handleAllOptionsExplored(at: pendingID, with: allOptions)
-                } else {
-                    branchOptions = availableOptions
-                }
+                // For aporiaSystem nodes, we need to deliver the content first
+                // The advance function will handle showing the branch options after delivery
+                advance(to: pendingID, skipPauseCheck: true)
             case .aporiaUser:
                 // Check if this was already chosen
                 if let parentId = findParentNode(for: pendingID) {
