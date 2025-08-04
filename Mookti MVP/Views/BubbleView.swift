@@ -124,8 +124,10 @@ struct BubbleView: View {
                     }
                 }
             }
+            .frame(maxWidth: message.carouselPayload != nil ? .infinity : nil,
+                   alignment: isUser ? .trailing : .leading)
 
-            if !isUser { Spacer() }
+            if !isUser && message.carouselPayload == nil { Spacer() }
         }
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
         .alert("AI Information", isPresented: $showingDisclaimer) {
