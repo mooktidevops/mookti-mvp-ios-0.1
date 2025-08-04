@@ -30,86 +30,91 @@ struct HomeView: View {
                     HStack(spacing: 16) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Hi, Jamie!")
-                                .font(.custom("Nunito-Bold", size: 32))
+                                .font(.custom("Inter-Regular", size: 32))
                                 .foregroundColor(Color.theme.textPrimary)
                         }
                         
                         Spacer()
                         
                         // Profile Picture
-                        ZStack {
-                            Circle()
-                                .fill(Color.theme.softPink)
-                                .frame(width: 60, height: 60)
-                            
-                            Text("JD")
-                                .font(.custom("Nunito-SemiBold", size: 20))
-                                .foregroundColor(Color.theme.accent)
-                        }
+                        Circle()
+                            .fill(Color.theme.softPink)
+                            .frame(width: 60, height: 60)
+                            .overlay(
+                                Text("JD")
+                                    .font(.custom("Inter-Regular", size: 20))
+                                    .foregroundColor(Color.theme.accent)
+                            )
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 20)
                     
                     // Progress Pills
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("workplace success learning path")
-                            .font(.custom("Inter-Regular", size: 14))
-                            .foregroundColor(Color.theme.textPrimary.opacity(0.7))
-                            .padding(.horizontal, 24)
-                        
+                    VStack(alignment: .leading, spacing: 8) {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 12) {
+                            HStack(spacing: 8) {
                                 ForEach(0..<5) { index in
                                     Capsule()
-                                        .fill(index < 3 ? Color.theme.accent : Color.theme.softPink.opacity(0.5))
-                                        .frame(width: index == 2 ? 60 : index < 3 ? 80 : 40, height: 8)
+                                        .fill(index < 3 ? Color.theme.accent : Color(hex: "E5E5E5"))
+                                        .frame(width: index == 2 ? 60 : index < 3 ? 100 : 100, height: 12)
                                 }
                             }
                             .padding(.horizontal, 24)
                         }
+                        
+                        Text("workplace success learning path")
+                            .font(.custom("Inter-Regular", size: 16))
+                            .foregroundColor(Color.theme.textPrimary.opacity(0.6))
+                            .italic()
+                            .padding(.horizontal, 24)
                     }
                     
                     // Current Focus Card
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Current Focus:")
-                            .font(.custom("Nunito-SemiBold", size: 20))
-                            .foregroundColor(Color.theme.textPrimary)
-                            .italic()
+                    HStack(alignment: .center, spacing: 20) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Current Focus:")
+                                .font(.custom("Inter-Regular", size: 18))
+                                .foregroundColor(Color.theme.textPrimary)
+                                .italic()
+                            
+                            Text("Intro to Cultural")
+                                .font(.custom("Inter-Regular", size: 18))
+                                .foregroundColor(Color.theme.textPrimary)
+                            
+                            Text("Intelligence")
+                                .font(.custom("Inter-Regular", size: 18))
+                                .foregroundColor(Color.theme.textPrimary)
+                        }
                         
-                        Text("Intro to Cultural Intelligence")
-                            .font(.custom("Nunito-Bold", size: 28))
-                            .foregroundColor(Color.theme.textPrimary)
-                            .padding(.bottom, 8)
+                        Spacer()
                         
                         Button(action: onContinue) {
                             ZStack {
                                 RoundedRectangle(cornerRadius: 20)
-                                    .fill(LinearGradient(
-                                        colors: [Color.theme.accent, Color.theme.accent.opacity(0.8)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ))
-                                    .frame(height: 160)
+                                    .fill(Color.theme.accent)
+                                    .frame(width: 140, height: 140)
                                 
-                                VStack {
-                                    Image(systemName: "play.circle.fill")
-                                        .font(.system(size: 48))
-                                        .foregroundColor(.white.opacity(0.9))
-                                    Text("Continue Learning")
-                                        .font(.custom("Inter-Medium", size: 16))
-                                        .foregroundColor(.white)
-                                }
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color(hex: "E5E5E5"))
+                                    .frame(width: 140, height: 140)
+                                    .mask(
+                                        GeometryReader { geometry in
+                                            Rectangle()
+                                                .frame(width: geometry.size.width * 0.4)
+                                                .offset(x: geometry.size.width * 0.6)
+                                        }
+                                    )
                             }
                         }
                         .buttonStyle(PlainButtonStyle())
-                        .shadow(color: Color.theme.accent.opacity(0.3), radius: 10, x: 0, y: 5)
                     }
                     .padding(.horizontal, 24)
+                    .padding(.vertical, 8)
                     
                     // Study Guides Section
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Study Guides")
-                            .font(.custom("Nunito-Bold", size: 24))
+                            .font(.custom("Lora-Regular", size: 28))
                             .foregroundColor(Color.theme.textPrimary)
                             .padding(.horizontal, 24)
                         
@@ -135,7 +140,7 @@ struct HomeView: View {
                     // Conversation History Section
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Conversation History")
-                            .font(.custom("Nunito-Bold", size: 24))
+                            .font(.custom("Lora-Regular", size: 28))
                             .foregroundColor(Color.theme.textPrimary)
                             .padding(.horizontal, 24)
                         
@@ -190,12 +195,14 @@ struct HomeView: View {
 }
 
 #if DEBUG
+import SwiftData
+
 struct HomeView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationStack {
             HomeView()
                 .environmentObject(UserProgressService())
-                .environmentObject(ConversationStore())
+                .environmentObject(ConversationStore(modelContext: try! ModelContext(ModelContainer(for: Conversation.self))))
         }
     }
 }
