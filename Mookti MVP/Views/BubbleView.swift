@@ -60,7 +60,7 @@ struct BubbleView: View {
                     // Message bubble
                     if message.content.hasPrefix("### Chunk") {
                         DisclosureGroup("Sources") {
-                            Text(message.content)
+                            Text(verbatim: message.content)
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
                                 .textSelection(.enabled)
@@ -103,7 +103,7 @@ struct BubbleView: View {
                                 .foregroundColor(isUser ? .white : Color.theme.textPrimary)
                                 .frame(maxWidth: 260, alignment: isUser ? .trailing : .leading)
                         } else {
-                            Text(message.content)
+                            Text(verbatim: message.content)
                                 .padding(12)
                                 .background(isUser ? Color.theme.blue.opacity(0.9)
                                                    : Color.theme.softPink)
