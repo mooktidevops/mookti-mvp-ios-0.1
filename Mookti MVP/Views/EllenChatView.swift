@@ -84,8 +84,8 @@ struct EllenChatView: View {
                                 }
                         }
                         
-                        // Typing indicator
-                        if vm.isTyping {
+                        // Typing indicator / loading animation
+                        if vm.isTyping || vm.isThinking {
                             TypingIndicatorBubble()
                                 .id("typing-indicator")
                         }
@@ -115,7 +115,9 @@ struct EllenChatView: View {
                             if value.translation.height < -20,
                                isAtBottom,
                                vm.hasMoreContent {
-                                vm.userScrolledDown()
+                                withAnimation(.easeOut) {
+                                    vm.userScrolledDown()
+                                }
                             }
                         }
                 )
@@ -152,20 +154,23 @@ struct EllenChatView: View {
                         }
                     }
                 }
+                .onChange(of: vm.isThinking) { _, isThinking in
+                    if isThinking {
+                        withAnimation {
+                            proxy.scrollTo("typing-indicator", anchor: .bottom)
+                        }
+                    }
+                }
                 }
             }
 
-            // Typing indicator when Ellen is thinking (after user input)
-            if vm.isThinking {
-                TypingIndicatorBubble()
-                    .padding(.bottom, 4)
-            }
-            
             // More content indicator when paused
             if vm.hasMoreContent {
                 Button(action: {
                     // Directly trigger continuation
-                    vm.userScrolledDown()
+                    withAnimation(.easeOut) {
+                        vm.userScrolledDown()
+                    }
                 }) {
                     HStack {
                         Image(systemName: "arrow.down.circle.fill")
