@@ -101,6 +101,10 @@ struct EllenChatView: View {
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        hideKeyboard()
+                    }
                     .background(GeometryReader { contentGeometry in
                         Color.clear
                             .preference(key: ContentHeightKey.self, value: contentGeometry.size.height)
@@ -273,6 +277,11 @@ struct EllenChatView: View {
                 vm.updateScrollPosition(isAtBottom: isAtBottom, viewportHeight: scrollViewHeight)
             }
         }
+    }
+    
+    // Helper to dismiss keyboard
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     // Helper
