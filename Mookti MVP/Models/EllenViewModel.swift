@@ -76,12 +76,15 @@ final class EllenViewModel: ObservableObject {
             
             // Update AI service with module information
             aiService?.totalNodes = graph.nodes.count
-            aiService?.moduleTitle = "Cultural Intelligence Learning Path"
             
-            // Load module title from chunk 0
-            if let titleNode = graph.node(for: "0"), titleNode.type == .moduleTitle {
-                moduleTitle = titleNode.content
-                print("📝 EllenViewModel: Loaded module title: \(moduleTitle)")
+            // Only load module title if a learning path is configured
+            if settings?.learningPath != nil {
+                // Try to load module title from chunk 0 (if it exists for this learning path)
+                if let titleNode = graph.node(for: "0"), titleNode.type == .moduleTitle {
+                    moduleTitle = titleNode.content
+                    aiService?.moduleTitle = moduleTitle
+                    print("📝 EllenViewModel: Loaded module title: \(moduleTitle)")
+                }
             }
             
             // Start lesson at sequence_id = "1" and deliver initial content
@@ -102,12 +105,15 @@ final class EllenViewModel: ObservableObject {
                     
                     // Update AI service with module information
                     aiService?.totalNodes = graph.nodes.count
-                    aiService?.moduleTitle = "Cultural Intelligence Learning Path"
                     
-                    // Load module title from chunk 0
-                    if let titleNode = graph.node(for: "0"), titleNode.type == .moduleTitle {
-                        moduleTitle = titleNode.content
-                        print("📝 EllenViewModel: Loaded module title: \(moduleTitle)")
+                    // Only load module title if a learning path is configured
+                    if settings?.learningPath != nil {
+                        // Try to load module title from chunk 0 (if it exists for this learning path)
+                        if let titleNode = graph.node(for: "0"), titleNode.type == .moduleTitle {
+                            moduleTitle = titleNode.content
+                            aiService?.moduleTitle = moduleTitle
+                            print("📝 EllenViewModel: Loaded module title: \(moduleTitle)")
+                        }
                     }
                     
                     // Start lesson at sequence_id = "1" and deliver initial content
@@ -140,16 +146,34 @@ final class EllenViewModel: ObservableObject {
         // Clear the waiting flag
         isWaitingForInitialLoad = false
         
-        print("🚀 EllenViewModel: Starting content delivery from node 1 (viewport: \(currentViewportHeight))")
-        
-        // Debug: Check if node exists
-        if let node = graph?.node(for: "1") {
-            print("✅ Node 1 found: type=\(node.type), content=\(node.content.prefix(50))...")
+        // Check if a learning path is configured
+        if let learningPath = settings?.learningPath {
+            print("🚀 EllenViewModel: Loading learning path: \(learningPath)")
+            
+            // Attempt to load the specified learning path
+            // For now, all learning paths start at node "1" by convention
+            // Future learning paths can define their own start nodes
+            let startNodeId = getStartNodeForLearningPath(learningPath)
+            
+            if let node = graph?.node(for: startNodeId) {
+                print("✅ Found start node \(startNodeId) for learning path '\(learningPath)': type=\(node.type)")
+                advance(to: startNodeId)
+            } else {
+                print("⚠️ EllenViewModel: Could not find start node '\(startNodeId)' for learning path: \(learningPath)")
+                // Learning path specified but content not found - Ellen is ready for regular chat
+            }
         } else {
-            print("❌ Node 1 not found in graph!")
+            print("💬 EllenViewModel: No learning path configured - Ellen ready")
+            // No learning path configured - Ellen is ready without pre-written content
         }
-        
-        advance(to: "1")
+    }
+    
+    /// Get the starting node ID for a given learning path
+    private func getStartNodeForLearningPath(_ learningPath: String) -> String {
+        // This can be expanded as new learning paths are added
+        // For now, all paths start at node "1"
+        // In the future, this could read from a configuration or the ContentGraphService
+        return "1"
     }
 
     // MARK: - Persistence

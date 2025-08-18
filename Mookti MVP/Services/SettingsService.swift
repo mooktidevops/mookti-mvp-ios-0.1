@@ -16,6 +16,7 @@ final class SettingsService: ObservableObject {
     @AppStorage("telemetryOptIn")    var telemetryOptIn   = false
     @AppStorage("enableAIDisclaimer") var enableAIDisclaimer = true
     @AppStorage("messageDeliverySpeed") var messageDeliverySpeed = 1.0  // 1.0 = normal speed
+    @AppStorage("learningPath") var learningPath: String? = nil  // nil = no pre-written content, "workplace_success" = Workplace Success learning path
 
 
     /// Erase all persisted settings (used by "Reset" button).
@@ -24,5 +25,6 @@ final class SettingsService: ObservableObject {
         streamReplies    = true
         telemetryOptIn   = false
         messageDeliverySpeed = 1.0
+        learningPath = nil
     }
 }
